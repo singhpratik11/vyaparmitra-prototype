@@ -4,7 +4,8 @@ import {
   Calendar, 
   Sparkles, 
   PanelLeftClose, 
-  PanelLeftOpen 
+  PanelLeftOpen,
+  Users 
 } from 'lucide-react';
 import Logo from './Logo';
 
@@ -12,7 +13,10 @@ export default function Header({
   onOpenMobileNav, 
   isSidebarCollapsed, 
   onToggleSidebar,
-  currentView 
+  currentView,
+  role,
+  roles = [],
+  onRoleChange 
 }) {
   const currentDateStr = "19 Sep 2026";
 
@@ -81,6 +85,26 @@ export default function Header({
           <Calendar className="w-3.5 h-3.5 text-[#1265A8]" />
           <span>{currentDateStr}</span>
         </div>
+
+        {/* Simulated role switcher — segregation of duties only, no real auth */}
+        {onRoleChange && (
+          <div className="hidden sm:flex items-center gap-1.5 px-3 py-1.5 bg-[#F6F9FB] rounded-lg border border-slate-200/70 text-xs font-medium text-[#526174]">
+            <Users className="w-3.5 h-3.5 text-[#1265A8]" />
+            <select
+              value={role}
+              onChange={(e) => onRoleChange(e.target.value)}
+              aria-label="Simulated role"
+              title="Simulated role — no real authentication"
+              className="bg-transparent text-xs font-medium text-[#526174] focus:outline-hidden"
+            >
+              {roles.map((roleOption) => (
+                <option key={roleOption} value={roleOption}>
+                  {roleOption}
+                </option>
+              ))}
+            </select>
+          </div>
+        )}
 
         {/* Prototype Indicator Badge */}
         <div className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-[#E8F7F3] border border-[#10B8A5]/30 rounded-lg text-xs font-semibold text-[#123B78]">

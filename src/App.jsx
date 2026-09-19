@@ -8,14 +8,37 @@ import GRNPage from './components/GRNPage';
 import ComingSoonModal from './components/ComingSoonModal';
 import { X } from 'lucide-react';
 
+// Simulated segregation of duties — no real auth, no server check.
+const ROLES = ['Owner', 'Billing clerk', 'Warehouse clerk', 'Finance', 'Lender'];
+
+const ROLE_VIEWS = {
+  Owner: ['home', 'dashboard', 'create-invoice', 'create-grn'],
+  'Billing clerk': ['create-invoice'],
+  'Warehouse clerk': ['create-grn'],
+  Finance: ['home', 'dashboard', 'create-invoice', 'create-grn'],
+  Lender: ['profile'],
+};
+
 export default function App() {
+  const [role, setRole] = useState('Owner');
   const [currentView, setCurrentView] = useState('home');
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
   const [isComingSoonOpen, setIsComingSoonOpen] = useState(false);
   const [isMobileNavOpen, setIsMobileNavOpen] = useState(false);
 
+  const allowedViews = ROLE_VIEWS[role];
+  // Any view outside the role falls back to that role's first allowed view.
+  const activeView = allowedViews.includes(currentView) ? currentView : allowedViews[0];
+
   const handleNavigate = (viewId) => {
     setCurrentView(viewId);
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
+
+  const handleRoleChange = (nextRole) => {
+    setRole(nextRole);
+    setCurrentView(ROLE_VIEWS[nextRole][0]);
+    setIsMobileNavOpen(false);
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
@@ -47,7 +70,8 @@ export default function App() {
           }`}
         >
           <Sidebar
-            currentView={currentView}
+            currentView={activeView}
+            allowedViews={allowedViews}
             onNavigate={handleNavigate}
             isCollapsed={isSidebarCollapsed}
             onToggleCollapse={() => setIsSidebarCollapsed(!isSidebarCollapsed)}
@@ -72,7 +96,8 @@ export default function App() {
                 <X className="w-5 h-5" />
               </button>
               <Sidebar
-                currentView={currentView}
+                currentView={activeView}
+                allowedViews={allowedViews}
                 onNavigate={handleNavigate}
                 onCloseMobile={() => setIsMobileNavOpen(false)}
                 isCollapsed={false}
@@ -87,12 +112,15 @@ export default function App() {
             onOpenMobileNav={() => setIsMobileNavOpen(true)}
             isSidebarCollapsed={isSidebarCollapsed}
             onToggleSidebar={() => setIsSidebarCollapsed(!isSidebarCollapsed)}
-            currentView={currentView}
+            currentView={activeView}
+            role={role}
+            roles={ROLES}
+            onRoleChange={handleRoleChange}
           />
 
           <main className="flex-1 p-4 md:p-8 max-w-7xl w-full mx-auto">
             {/* View 1: HOMEPAGE (Calm, Uncluttered, Welcoming) */}
-            {currentView === 'home' && (
+            {activeView === 'home' && (
               <HomePage
                 onNavigate={handleNavigate}
                 onTriggerComingSoon={handleTriggerComingSoon}
@@ -100,7 +128,7 @@ export default function App() {
             )}
 
             {/* View 2: BUSINESS DASHBOARD (Deep Financials, Metrics, Activity Ledger) */}
-            {currentView === 'dashboard' && (
+            {activeView === 'dashboard' && (
               <DashboardPage
                 onNavigate={handleNavigate}
                 onTriggerComingSoon={handleTriggerComingSoon}
@@ -108,7 +136,7 @@ export default function App() {
             )}
 
             {/* View 3: CREATE INVOICE (Visual Mock Form) */}
-            {currentView === 'create-invoice' && (
+            {activeView === 'create-invoice' && (
               <InvoicePage
                 onBackToDashboard={() => handleNavigate('home')}
                 onTriggerComingSoon={handleTriggerComingSoon}
@@ -116,11 +144,18 @@ export default function App() {
             )}
 
             {/* View 4: CREATE GRN (Visual Mock Form) */}
-            {currentView === 'create-grn' && (
+            {activeView === 'create-grn' && (
               <GRNPage
                 onBackToDashboard={() => handleNavigate('home')}
                 onTriggerComingSoon={handleTriggerComingSoon}
               />
+            )}
+
+            {/* View 5: LENDER PROFILE (read-only, built next task) */}
+            {activeView === 'profile' && (
+              <p className="text-sm text-[#526174]">
+                Lender view — read-only profile, not built yet.
+              </p>
             )}
           </main>
 

@@ -14,6 +14,7 @@ import Logo from './Logo';
 
 export default function Sidebar({ 
   currentView, 
+  allowedViews, 
   onNavigate, 
   onCloseMobile, 
   isCollapsed = false, 
@@ -45,6 +46,10 @@ export default function Sidebar({
       description: 'Record Goods Received',
     },
   ];
+
+  const visibleNavItems = allowedViews
+    ? navItems.filter((item) => allowedViews.includes(item.id))
+    : navItems;
 
   const handleNavClick = (id) => {
     onNavigate(id);
@@ -106,7 +111,7 @@ export default function Sidebar({
             </div>
           )}
 
-          {navItems.map((item) => {
+          {visibleNavItems.map((item) => {
             const Icon = item.icon;
             const isActive = currentView === item.id;
 
