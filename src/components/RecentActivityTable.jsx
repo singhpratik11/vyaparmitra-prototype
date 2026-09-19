@@ -1,6 +1,9 @@
 import React, { useState } from 'react';
-import { FileText, PackageCheck, ArrowUpRight, ArrowDownLeft, Filter, ExternalLink } from 'lucide-react';
+import { FileText, PackageCheck, ArrowUpRight, ArrowDownLeft, Filter, ExternalLink, ShieldCheck, BadgeCheck } from 'lucide-react';
 import { useAppState } from '../context/AppStateContext.jsx';
+
+// Simulated only — the prototype has no verification integrations.
+const VERIFICATION_SOURCES = ['GST e-invoice ref', 'Bank inflow matched', 'Buyer confirmed'];
 
 const amountFormatter = new Intl.NumberFormat('en-IN', { maximumFractionDigits: 0 });
 
@@ -20,8 +23,16 @@ function formatDate(isoDate) {
 }
 
 export default function RecentActivityTable({ onTriggerComingSoon }) {
-  const { records } = useAppState();
+  const { records, verifyRecord } = useAppState();
   const [filter, setFilter] = useState('ALL');
+
+  // Cycles through the mock sources as records get verified.
+  const verifiedCount = records.filter((record) => record.status === 'Verified').length;
+
+  const handleVerify = (event, id) => {
+    event.stopPropagation();
+    verifyRecord(id, VERIFICATION_SOURCES[verifiedCount % VERIFICATION_SOURCES.length]);
+  };
 
   const filteredActivities = records.filter((record) => {
     if (filter === 'INVOICE') return record.type === 'Sale';
@@ -121,29 +132,46 @@ export default function RecentActivityTable({ onTriggerComingSoon }) {
                 {/* Status */}
                 <td className="py-3.5 px-3 text-center whitespace-nowrap">
                   <span
-                    className={`inline-block px-2.5 py-0.5 rounded-full text-xs font-semibold border ${
+                    title={row.verificationSource || undefined}
+                    className={`inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-semibold border ${
                       row.status === 'Verified'
                         ? 'bg-[#E8F7F3] text-[#123B78] border-[#10B8A5]/30'
                         : 'bg-slate-100 text-[#526174] border-slate-200'
                     }`}
                   >
-                    {row.status}
+                    {row.status === 'Verified' && (
+                      <BadgeCheck className="w-3.5 h-3.5 text-[#10B8A5]" />
+                    )}
+                    <span>{row.status}</span>
                   </span>
                 </td>
 
                 {/* Action */}
                 <td className="py-3.5 px-3 text-right whitespace-nowrap">
-                  <button
-                    type="button"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      onTriggerComingSoon();
-                    }}
-                    className="inline-flex items-center gap-1 text-xs font-semibold text-[#1265A8] hover:text-[#123B78] hover:underline"
-                  >
-                    <span>Details</span>
-                    <ArrowUpRight className="w-3.5 h-3.5" />
-                  </button>
+                  <div className="inline-flex items-center gap-3">
+                    {row.status === 'Unverified' && (
+                      <button
+                        type="button"
+                        onClick={(e) => handleVerify(e, row.id)}
+                        className="inline-flex items-center gap-1 text-xs font-semibold text-[#10B8A5] hover:text-[#123B78] hover:underline"
+                      >
+                        <ShieldCheck className="w-3.5 h-3.5" />
+                        <span>Verify</span>
+                      </button>
+                    )}
+
+                    <button
+                      type="button"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        onTriggerComingSoon();
+                      }}
+                      className="inline-flex items-center gap-1 text-xs font-semibold text-[#1265A8] hover:text-[#123B78] hover:underline"
+                    >
+                      <span>Details</span>
+                      <ArrowUpRight className="w-3.5 h-3.5" />
+                    </button>
+                  </div>
                 </td>
               </tr>
             ))}
@@ -154,6 +182,7 @@ export default function RecentActivityTable({ onTriggerComingSoon }) {
       {/* Footer note */}
       <div className="mt-4 pt-3 border-t border-slate-100 flex flex-col sm:flex-row items-center justify-between text-xs text-[#526174]">
         <span>Showing {filteredActivities.length} mock ledger entries</span>
+        <span>Prototype — verification simulated</span>
         <button
           onClick={onTriggerComingSoon}
           className="text-xs font-semibold text-[#1265A8] hover:text-[#123B78] mt-2 sm:mt-0"
