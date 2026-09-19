@@ -19,12 +19,14 @@ const STORAGE_KEY = 'vyaparmitra:appState:v1';
  * @typedef {Object} AppState
  * @property {TradeRecord[]} records
  * @property {boolean} profileShared
+ * @property {'Approve'|'Make offer'|'Decline'|null} lenderDecision
  */
 
 /** @type {AppState} */
 const INITIAL_STATE = {
   records: [],
   profileShared: false,
+  lenderDecision: null,
 };
 
 const AppStateContext = createContext(null);
@@ -37,6 +39,7 @@ function readPersistedState() {
     return {
       records: Array.isArray(parsed?.records) ? parsed.records : [],
       profileShared: Boolean(parsed?.profileShared),
+      lenderDecision: parsed?.lenderDecision ?? null,
     };
   } catch {
     // Private window, blocked storage, or corrupt payload: start clean.
@@ -92,15 +95,30 @@ export function AppStateProvider({ children }) {
     setState((prev) => ({ ...prev, profileShared: Boolean(profileShared) }));
   }, []);
 
+  /** Records the lending partner's decision: 'Approve', 'Make offer' or 'Decline'. */
+  const setLenderDecision = useCallback((lenderDecision) => {
+    setState((prev) => ({ ...prev, lenderDecision: lenderDecision ?? null }));
+  }, []);
+
   const value = useMemo(
     () => ({
       records: state.records,
       profileShared: state.profileShared,
+      lenderDecision: state.lenderDecision,
       addRecord,
       verifyRecord,
       setProfileShared,
+      setLenderDecision,
     }),
-    [state.records, state.profileShared, addRecord, verifyRecord, setProfileShared]
+    [
+      state.records,
+      state.profileShared,
+      state.lenderDecision,
+      addRecord,
+      verifyRecord,
+      setProfileShared,
+      setLenderDecision,
+    ]
   );
 
   return <AppStateContext.Provider value={value}>{children}</AppStateContext.Provider>;

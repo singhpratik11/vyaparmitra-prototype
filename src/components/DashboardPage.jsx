@@ -1,10 +1,21 @@
-import React from 'react';
+import React, { useState } from 'react';
 import CreditworthinessCard from './CreditworthinessCard';
 import BusinessSnapshot from './BusinessSnapshot';
 import RecentActivityTable from './RecentActivityTable';
-import { ArrowLeft, FilePlus2, PackagePlus, Sparkles } from 'lucide-react';
+import ShareProfileModal from './ShareProfileModal';
+import { ArrowLeft, FilePlus2, PackagePlus, Sparkles, ShieldCheck } from 'lucide-react';
+import { useAppState } from '../context/AppStateContext.jsx';
+
+const DECISION_STYLES = {
+  Approve: 'bg-[#E8F7F3] text-[#123B78] border-[#10B8A5]/30',
+  'Make offer': 'bg-blue-50 text-[#1265A8] border-blue-200',
+  Decline: 'bg-amber-50 text-amber-800 border-amber-200',
+};
 
 export default function DashboardPage({ onNavigate, onTriggerComingSoon }) {
+  const { profileShared, lenderDecision, setProfileShared } = useAppState();
+  const [isShareOpen, setIsShareOpen] = useState(false);
+
   return (
     <div className="space-y-6 md:space-y-8 max-w-7xl mx-auto">
       {/* Dashboard Header with Navigation & Quick Actions */}
@@ -28,6 +39,23 @@ export default function DashboardPage({ onNavigate, onTriggerComingSoon }) {
           <p className="text-xs md:text-sm text-[#526174] mt-0.5">
             Track your business activity, receivables, and verified financial record.
           </p>
+
+          {profileShared && (
+            <span
+              className={`mt-2 inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold border ${
+                lenderDecision
+                  ? DECISION_STYLES[lenderDecision]
+                  : 'bg-slate-100 text-[#526174] border-slate-200'
+              }`}
+            >
+              <ShieldCheck className="w-3.5 h-3.5" />
+              <span>
+                {lenderDecision
+                  ? `Lending partner decision: ${lenderDecision}`
+                  : 'Profile shared — awaiting partner decision'}
+              </span>
+            </span>
+          )}
         </div>
 
         {/* Quick Action Shortcuts */}
@@ -49,6 +77,15 @@ export default function DashboardPage({ onNavigate, onTriggerComingSoon }) {
             <PackagePlus className="w-4 h-4 text-[#1265A8]" />
             <span>+ GRN</span>
           </button>
+
+          <button
+            type="button"
+            onClick={() => setIsShareOpen(true)}
+            className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-white border border-slate-200/80 text-[#123B78] hover:bg-slate-50 text-xs font-bold shadow-2xs transition-colors"
+          >
+            <ShieldCheck className="w-4 h-4 text-[#10B8A5]" />
+            <span>Check Credit Eligibility</span>
+          </button>
         </div>
       </div>
 
@@ -66,6 +103,16 @@ export default function DashboardPage({ onNavigate, onTriggerComingSoon }) {
       <section aria-label="Recent Transactions Activity">
         <RecentActivityTable onTriggerComingSoon={onTriggerComingSoon} />
       </section>
+
+      {/* Consent before anything is shared with a lending partner */}
+      <ShareProfileModal
+        isOpen={isShareOpen}
+        onClose={() => setIsShareOpen(false)}
+        onConfirm={() => {
+          setProfileShared(true);
+          setIsShareOpen(false);
+        }}
+      />
     </div>
   );
 }

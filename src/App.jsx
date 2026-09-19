@@ -5,6 +5,7 @@ import HomePage from './components/HomePage';
 import DashboardPage from './components/DashboardPage';
 import InvoicePage from './components/InvoicePage';
 import GRNPage from './components/GRNPage';
+import LenderProfilePage from './components/LenderProfilePage';
 import ComingSoonModal from './components/ComingSoonModal';
 import { X } from 'lucide-react';
 
@@ -151,12 +152,8 @@ export default function App() {
               />
             )}
 
-            {/* View 5: LENDER PROFILE (read-only, built next task) */}
-            {activeView === 'profile' && (
-              <p className="text-sm text-[#526174]">
-                Lender view — read-only profile, not built yet.
-              </p>
-            )}
+            {/* View 5: LENDER PROFILE (read-only, shared by consent) */}
+            {activeView === 'profile' && <LenderProfilePage />}
           </main>
 
           {/* Footer note */}
