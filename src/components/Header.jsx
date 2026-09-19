@@ -1,42 +1,82 @@
 import React from 'react';
-import { Menu, Calendar, ShieldCheck, Sparkles } from 'lucide-react';
+import { 
+  Menu, 
+  Calendar, 
+  Sparkles, 
+  PanelLeftClose, 
+  PanelLeftOpen 
+} from 'lucide-react';
 import Logo from './Logo';
 
-export default function Header({ onOpenMobileNav }) {
-  const currentDateStr = "18 Sep 2026";
+export default function Header({ 
+  onOpenMobileNav, 
+  isSidebarCollapsed, 
+  onToggleSidebar,
+  currentView 
+}) {
+  const currentDateStr = "19 Sep 2026";
+
+  const getSubtext = () => {
+    switch (currentView) {
+      case 'home':
+        return 'Your simplified business hub.';
+      case 'dashboard':
+        return 'Detailed financial ledger & metrics.';
+      case 'create-invoice':
+        return 'Sales & compliant billing entry.';
+      case 'create-grn':
+        return 'Inward goods receipt reconciliation.';
+      default:
+        return 'Your business at a glance.';
+    }
+  };
 
   return (
-    <header className="bg-white border-b border-slate-200/80 px-6 py-4 flex flex-col md:flex-row md:items-center md:justify-between gap-4 sticky top-0 z-20">
-      {/* Left side: Mobile trigger, Brand Logo & Greeting */}
-      <div className="flex flex-col sm:flex-row sm:items-center gap-3">
-        <div className="flex items-center gap-3">
-          {/* Mobile menu button */}
-          <button
-            onClick={onOpenMobileNav}
-            className="md:hidden p-2 rounded-lg text-[#526174] hover:bg-slate-100 focus:outline-hidden"
-            aria-label="Open Navigation Menu"
-          >
-            <Menu className="w-6 h-6" />
-          </button>
+    <header className="bg-white border-b border-slate-200/80 px-4 md:px-6 py-3.5 flex flex-col md:flex-row md:items-center md:justify-between gap-3 sticky top-0 z-20">
+      {/* Left side: Sidebar toggles, Mobile trigger & Greeting */}
+      <div className="flex items-center gap-3">
+        {/* Mobile menu button */}
+        <button
+          onClick={onOpenMobileNav}
+          className="md:hidden p-2 rounded-lg text-[#526174] hover:bg-slate-100 focus:outline-hidden"
+          aria-label="Open Navigation Menu"
+        >
+          <Menu className="w-5 h-5" />
+        </button>
 
-          {/* Mobile-only logo */}
-          <div className="md:hidden">
-            <Logo size="small" />
-          </div>
+        {/* Desktop Sidebar Toggle in Header */}
+        {onToggleSidebar && (
+          <button
+            onClick={onToggleSidebar}
+            className="hidden md:flex p-2 rounded-xl text-[#526174] hover:bg-slate-100 hover:text-[#123B78] transition-colors focus:outline-hidden"
+            title={isSidebarCollapsed ? "Expand Sidebar" : "Collapse Sidebar"}
+            aria-label={isSidebarCollapsed ? "Expand Sidebar" : "Collapse Sidebar"}
+          >
+            {isSidebarCollapsed ? (
+              <PanelLeftOpen className="w-5 h-5" />
+            ) : (
+              <PanelLeftClose className="w-5 h-5" />
+            )}
+          </button>
+        )}
+
+        {/* Mobile-only logo */}
+        <div className="md:hidden">
+          <Logo size="small" />
         </div>
 
         <div>
-          <h1 className="text-xl md:text-2xl font-bold text-[#172033] tracking-tight">
+          <h1 className="text-lg md:text-xl font-bold text-[#172033] tracking-tight">
             Good morning, <span className="text-[#123B78]">ABC Manufacturing</span>
           </h1>
-          <p className="text-xs md:text-sm text-[#526174] font-medium mt-0.5">
-            Your business at a glance.
+          <p className="text-xs text-[#526174] font-medium">
+            {getSubtext()}
           </p>
         </div>
       </div>
 
-      {/* Right side: Prototype Status & Date */}
-      <div className="flex items-center gap-3 self-start md:self-auto">
+      {/* Right side: Date & Prototype Status */}
+      <div className="flex items-center gap-2.5 self-start md:self-auto">
         <div className="hidden sm:flex items-center gap-1.5 px-3 py-1.5 bg-[#F6F9FB] rounded-lg border border-slate-200/70 text-xs font-medium text-[#526174]">
           <Calendar className="w-3.5 h-3.5 text-[#1265A8]" />
           <span>{currentDateStr}</span>

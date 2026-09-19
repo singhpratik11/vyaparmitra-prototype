@@ -1,0 +1,71 @@
+import React from 'react';
+import CreditworthinessCard from './CreditworthinessCard';
+import BusinessSnapshot from './BusinessSnapshot';
+import RecentActivityTable from './RecentActivityTable';
+import { ArrowLeft, FilePlus2, PackagePlus, Sparkles } from 'lucide-react';
+
+export default function DashboardPage({ onNavigate, onTriggerComingSoon }) {
+  return (
+    <div className="space-y-6 md:space-y-8 max-w-7xl mx-auto">
+      {/* Dashboard Header with Navigation & Quick Actions */}
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 pb-2 border-b border-slate-200/60">
+        <div>
+          <div className="flex items-center gap-2 mb-1">
+            <button
+              onClick={() => onNavigate('home')}
+              className="inline-flex items-center gap-1.5 text-xs font-semibold text-[#526174] hover:text-[#123B78]"
+            >
+              <ArrowLeft className="w-3.5 h-3.5" />
+              <span>Back to Home</span>
+            </button>
+            <span className="text-slate-300">•</span>
+            <span className="text-xs font-semibold text-[#1265A8]">Financial Center</span>
+          </div>
+
+          <h1 className="text-2xl md:text-3xl font-bold text-[#172033] tracking-tight">
+            Business Dashboard
+          </h1>
+          <p className="text-xs md:text-sm text-[#526174] mt-0.5">
+            Track your business activity, receivables, and verified financial record.
+          </p>
+        </div>
+
+        {/* Quick Action Shortcuts */}
+        <div className="flex items-center gap-2.5 self-start sm:self-auto">
+          <button
+            type="button"
+            onClick={() => onNavigate('create-invoice')}
+            className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-white border border-slate-200/80 text-[#123B78] hover:bg-slate-50 text-xs font-bold shadow-2xs transition-colors"
+          >
+            <FilePlus2 className="w-4 h-4 text-[#10B8A5]" />
+            <span>+ Invoice</span>
+          </button>
+
+          <button
+            type="button"
+            onClick={() => onNavigate('create-grn')}
+            className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-white border border-slate-200/80 text-[#123B78] hover:bg-slate-50 text-xs font-bold shadow-2xs transition-colors"
+          >
+            <PackagePlus className="w-4 h-4 text-[#1265A8]" />
+            <span>+ GRN</span>
+          </button>
+        </div>
+      </div>
+
+      {/* 1. Creditworthiness Card */}
+      <section aria-label="Business Creditworthiness">
+        <CreditworthinessCard />
+      </section>
+
+      {/* 2. Business Snapshot Metrics */}
+      <section aria-label="Business Metrics Snapshot">
+        <BusinessSnapshot />
+      </section>
+
+      {/* 3. Recent Business Activity Ledger */}
+      <section aria-label="Recent Transactions Activity">
+        <RecentActivityTable onTriggerComingSoon={onTriggerComingSoon} />
+      </section>
+    </div>
+  );
+}
