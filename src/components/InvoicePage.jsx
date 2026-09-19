@@ -1,7 +1,37 @@
-import React from 'react';
-import { ArrowLeft, FilePlus2, Sparkles, AlertCircle, Info, Lock } from 'lucide-react';
+import React, { useState } from 'react';
+import { ArrowLeft, FilePlus2, Sparkles, AlertCircle, Info, Lock, CheckCircle2 } from 'lucide-react';
+import { useAppState } from '../context/AppStateContext.jsx';
 
 export default function InvoicePage({ onBackToDashboard, onTriggerComingSoon }) {
+  const { addRecord } = useAppState();
+
+  const [buyer, setBuyer] = useState('Sharma Enterprises Pvt Ltd');
+  const [invoiceDate, setInvoiceDate] = useState('2026-09-18');
+  const [paymentTermsDays, setPaymentTermsDays] = useState('30');
+  const [quantity, setQuantity] = useState('250');
+  const [rate, setRate] = useState('960');
+  const [savedMessage, setSavedMessage] = useState('');
+
+  const handleSubmit = (e) => {
+    e.preventDefault();
+
+    const record = addRecord({
+      type: 'Sale',
+      party: buyer,
+      amount: Number(quantity) * Number(rate),
+      date: invoiceDate,
+      paymentTermsDays: Number(paymentTermsDays),
+      status: 'Unverified',
+    });
+
+    setSavedMessage(`Sale recorded — ${record.id}`);
+    setBuyer('');
+    setInvoiceDate('');
+    setPaymentTermsDays('');
+    setQuantity('');
+    setRate('');
+  };
+
   return (
     <div className="space-y-6 max-w-4xl mx-auto">
       {/* Top Breadcrumb / Back button */}
@@ -52,13 +82,7 @@ export default function InvoicePage({ onBackToDashboard, onTriggerComingSoon }) 
         </div>
 
         {/* Visual Invoice Form Layout (Disabled/Demonstration) */}
-        <form
-          onSubmit={(e) => {
-            e.preventDefault();
-            onTriggerComingSoon();
-          }}
-          className="mt-8 space-y-6"
-        >
+        <form onSubmit={handleSubmit} className="mt-8 space-y-6">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
             {/* Customer Name */}
             <div>
@@ -67,9 +91,10 @@ export default function InvoicePage({ onBackToDashboard, onTriggerComingSoon }) 
               </label>
               <input
                 type="text"
-                disabled
-                defaultValue="Sharma Enterprises Pvt Ltd"
-                className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 bg-slate-50/70 text-[#172033] text-sm cursor-not-allowed font-medium"
+                required
+                value={buyer}
+                onChange={(e) => setBuyer(e.target.value)}
+                className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 bg-slate-50/70 text-[#172033] text-sm font-medium"
               />
             </div>
 
@@ -92,10 +117,11 @@ export default function InvoicePage({ onBackToDashboard, onTriggerComingSoon }) 
                 Invoice Date <span className="text-red-500">*</span>
               </label>
               <input
-                type="text"
-                disabled
-                defaultValue="18 Sep 2026"
-                className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 bg-slate-50/70 text-[#172033] text-sm cursor-not-allowed"
+                type="date"
+                required
+                value={invoiceDate}
+                onChange={(e) => setInvoiceDate(e.target.value)}
+                className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 bg-slate-50/70 text-[#172033] text-sm"
               />
             </div>
 
@@ -105,10 +131,11 @@ export default function InvoicePage({ onBackToDashboard, onTriggerComingSoon }) 
                 Payment Terms
               </label>
               <input
-                type="text"
-                disabled
-                defaultValue="Net 30 Days (Due 18 Oct 2026)"
-                className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 bg-slate-50/70 text-[#172033] text-sm cursor-not-allowed"
+                type="number"
+                min="0"
+                value={paymentTermsDays}
+                onChange={(e) => setPaymentTermsDays(e.target.value)}
+                className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 bg-slate-50/70 text-[#172033] text-sm"
               />
             </div>
           </div>
@@ -139,10 +166,11 @@ export default function InvoicePage({ onBackToDashboard, onTriggerComingSoon }) 
                   Quantity
                 </label>
                 <input
-                  type="text"
-                  disabled
-                  defaultValue="250 Units"
-                  className="w-full px-3 py-2 rounded-xl border border-slate-200 bg-slate-50/70 text-[#172033] text-sm cursor-not-allowed"
+                  type="number"
+                  min="0"
+                  value={quantity}
+                  onChange={(e) => setQuantity(e.target.value)}
+                  className="w-full px-3 py-2 rounded-xl border border-slate-200 bg-slate-50/70 text-[#172033] text-sm"
                 />
               </div>
 
@@ -152,10 +180,12 @@ export default function InvoicePage({ onBackToDashboard, onTriggerComingSoon }) 
                   Rate (₹)
                 </label>
                 <input
-                  type="text"
-                  disabled
-                  defaultValue="₹ 960.00"
-                  className="w-full px-3 py-2 rounded-xl border border-slate-200 bg-slate-50/70 text-[#172033] text-sm cursor-not-allowed font-mono"
+                  type="number"
+                  min="0"
+                  step="0.01"
+                  value={rate}
+                  onChange={(e) => setRate(e.target.value)}
+                  className="w-full px-3 py-2 rounded-xl border border-slate-200 bg-slate-50/70 text-[#172033] text-sm font-mono"
                 />
               </div>
 
@@ -197,6 +227,13 @@ export default function InvoicePage({ onBackToDashboard, onTriggerComingSoon }) 
             >
               Back to Dashboard
             </button>
+
+            {savedMessage && (
+              <span className="inline-flex items-center gap-1.5 text-xs font-semibold text-[#10B8A5]">
+                <CheckCircle2 className="w-4 h-4" />
+                <span>{savedMessage}</span>
+              </span>
+            )}
 
             <button
               type="submit"
