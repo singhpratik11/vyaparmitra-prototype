@@ -1,7 +1,96 @@
 import React from 'react';
 import { ShieldCheck, Info, TrendingUp, CheckCircle2, Clock } from 'lucide-react';
+import { useAppState } from '../context/AppStateContext.jsx';
+
+// Prototype thresholds — readiness signals only, never a score we own.
+const VOLUME_TARGET = 500000;
+const VERIFIED_TARGET = 0.6;
+const ON_TIME_TARGET = 0.8;
+const CONCENTRATION_LIMIT = 0.5;
+
+const amountFormatter = new Intl.NumberFormat('en-IN', { maximumFractionDigits: 0 });
+
+function formatAmount(amount) {
+  if (amount >= 100000) return `₹${(amount / 100000).toFixed(1)}L`;
+  return `₹${amountFormatter.format(amount || 0)}`;
+}
+
+function formatShare(share) {
+  return share === null ? '—' : `${Math.round(share * 100)}%`;
+}
+
+function sumAmounts(records) {
+  return records.reduce((total, record) => total + (Number(record.amount) || 0), 0);
+}
+
+const STATUS_STYLES = {
+  Strong: {
+    pill: 'bg-emerald-50 border-emerald-200/80 text-emerald-700',
+    ping: 'bg-emerald-400',
+    dot: 'bg-emerald-600',
+  },
+  Improving: {
+    pill: 'bg-blue-50 border-blue-200/80 text-[#1265A8]',
+    ping: 'bg-[#1265A8]',
+    dot: 'bg-[#1265A8]',
+  },
+  'Needs attention': {
+    pill: 'bg-amber-50 border-amber-200/80 text-amber-800',
+    ping: 'bg-amber-400',
+    dot: 'bg-amber-600',
+  },
+};
 
 export default function CreditworthinessCard() {
+  const { records } = useAppState();
+
+  const sales = records.filter((record) => record.type === 'Sale');
+  const settled = records.filter((record) => record.paidOnTime === true || record.paidOnTime === false);
+  const volume = sumAmounts(records);
+  const salesValue = sumAmounts(sales);
+
+  const verifiedShare = records.length
+    ? records.filter((record) => record.status === 'Verified').length / records.length
+    : null;
+  const onTimeShare = settled.length
+    ? settled.filter((record) => record.paidOnTime === true).length / settled.length
+    : null;
+
+  let concentration = null;
+  if (salesValue > 0) {
+    const byBuyer = new Map();
+    sales.forEach((record) => {
+      byBuyer.set(record.party, (byBuyer.get(record.party) || 0) + (Number(record.amount) || 0));
+    });
+    concentration = Math.max(...byBuyer.values()) / salesValue;
+  }
+
+  // A signal with no data is skipped rather than counted against the business.
+  const signals = [
+    records.length ? volume >= VOLUME_TARGET : null,
+    verifiedShare === null ? null : verifiedShare >= VERIFIED_TARGET,
+    onTimeShare === null ? null : onTimeShare >= ON_TIME_TARGET,
+    concentration === null ? null : concentration <= CONCENTRATION_LIMIT,
+  ];
+  const available = signals.filter((signal) => signal !== null);
+  const met = available.filter(Boolean).length;
+
+  let status = 'Needs attention';
+  if (available.length && met === available.length) status = 'Strong';
+  else if (available.length && met * 2 >= available.length) status = 'Improving';
+
+  const statusStyle = STATUS_STYLES[status];
+
+  const narrative = records.length
+    ? [
+        `${records.length} record${records.length === 1 ? '' : 's'} worth ${formatAmount(volume)} recorded`,
+        verifiedShare === null ? null : `${formatShare(verifiedShare)} verified`,
+        concentration === null ? null : `largest buyer ${formatShare(concentration)} of sales`,
+      ]
+        .filter(Boolean)
+        .join(', ') + `.${onTimeShare === null ? ' No settlement history yet.' : ''}`
+    : 'No trade recorded yet — add invoices and GRNs to build a presentable record.';
+
   return (
     <div className="bg-white rounded-2xl border border-slate-200/90 p-6 md:p-7 shadow-xs relative overflow-hidden">
       {/* Subtle brand tint gradient accent in top right */}
@@ -21,17 +110,17 @@ export default function CreditworthinessCard() {
             </h2>
 
             {/* Health Status Pill */}
-            <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-emerald-50 border border-emerald-200/80 text-emerald-700 font-bold text-sm tracking-wide">
+            <div className={`inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full border font-bold text-sm tracking-wide ${statusStyle.pill}`}>
               <span className="relative flex h-2.5 w-2.5">
-                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
-                <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-emerald-600"></span>
+                <span className={`animate-ping absolute inline-flex h-full w-full rounded-full opacity-75 ${statusStyle.ping}`}></span>
+                <span className={`relative inline-flex rounded-full h-2.5 w-2.5 ${statusStyle.dot}`}></span>
               </span>
-              <span>● HEALTHY</span>
+              <span>● {status.toUpperCase()}</span>
             </div>
           </div>
 
           <p className="text-sm md:text-base text-[#526174] font-normal leading-relaxed">
-            Your recorded business activity indicates a consistent trading history.
+            {narrative}
           </p>
 
           {/* Prototype Disclaimer */}
@@ -50,7 +139,7 @@ export default function CreditworthinessCard() {
               <CheckCircle2 className="w-3.5 h-3.5 text-[#10B8A5]" />
               <span>Settlements</span>
             </div>
-            <p className="text-base font-bold text-[#123B78] mt-1">98.4%</p>
+            <p className="text-base font-bold text-[#123B78] mt-1">{formatShare(onTimeShare)}</p>
             <p className="text-[10px] text-[#526174]">On-time history</p>
           </div>
 
@@ -59,8 +148,8 @@ export default function CreditworthinessCard() {
               <Clock className="w-3.5 h-3.5 text-[#1265A8]" />
               <span>Consistency</span>
             </div>
-            <p className="text-base font-bold text-[#123B78] mt-1">Active</p>
-            <p className="text-[10px] text-[#526174]">Continuous trading</p>
+            <p className="text-base font-bold text-[#123B78] mt-1">{formatAmount(volume)}</p>
+            <p className="text-[10px] text-[#526174]">Recorded trade volume</p>
           </div>
 
           <div className="p-3.5 rounded-xl bg-[#F6F9FB] border border-slate-200/70 min-w-[125px] col-span-2 sm:col-span-1">
@@ -68,8 +157,8 @@ export default function CreditworthinessCard() {
               <TrendingUp className="w-3.5 h-3.5 text-[#10B8A5]" />
               <span>Record Health</span>
             </div>
-            <p className="text-base font-bold text-[#10B8A5] mt-1">Verified</p>
-            <p className="text-[10px] text-[#526174]">Clean bahi khata</p>
+            <p className="text-base font-bold text-[#10B8A5] mt-1">{formatShare(verifiedShare)}</p>
+            <p className="text-[10px] text-[#526174]">Records verified</p>
           </div>
         </div>
       </div>
