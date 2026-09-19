@@ -1,13 +1,31 @@
 import React from 'react';
 import { IndianRupee, TrendingUp, Clock, FileCheck2, ShoppingBag } from 'lucide-react';
+import { useAppState } from '../context/AppStateContext.jsx';
+
+const amountFormatter = new Intl.NumberFormat('en-IN', { maximumFractionDigits: 0 });
+
+function formatAmount(amount) {
+  if (amount >= 100000) return `₹${(amount / 100000).toFixed(1)}L`;
+  return `₹${amountFormatter.format(amount || 0)}`;
+}
+
+function sumAmounts(records) {
+  return records.reduce((total, record) => total + (Number(record.amount) || 0), 0);
+}
 
 export default function BusinessSnapshot() {
+  const { records } = useAppState();
+
+  const sales = records.filter((record) => record.type === 'Sale');
+  const purchases = records.filter((record) => record.type === 'Purchase');
+  const outstandingSales = sales.filter((record) => record.paidOnTime === null || record.paidOnTime === undefined);
+
   const stats = [
     {
       id: 'sales',
       label: 'Total Sales',
-      value: '₹12.4L',
-      subtext: '32 customer orders logged',
+      value: formatAmount(sumAmounts(sales)),
+      subtext: `${sales.length} customer orders logged`,
       icon: TrendingUp,
       color: 'text-[#123B78]',
       badge: '+14% this month',
@@ -16,8 +34,8 @@ export default function BusinessSnapshot() {
     {
       id: 'receivables',
       label: 'Receivables',
-      value: '₹2.8L',
-      subtext: '8 invoices pending collection',
+      value: formatAmount(sumAmounts(outstandingSales)),
+      subtext: `${outstandingSales.length} invoices pending collection`,
       icon: Clock,
       color: 'text-[#1265A8]',
       badge: 'Avg. 18 days cycle',
@@ -26,8 +44,8 @@ export default function BusinessSnapshot() {
     {
       id: 'purchases',
       label: 'Purchases',
-      value: '₹7.1L',
-      subtext: '16 supplier GRNs logged',
+      value: formatAmount(sumAmounts(purchases)),
+      subtext: `${purchases.length} supplier GRNs logged`,
       icon: ShoppingBag,
       color: 'text-[#10B8A5]',
       badge: 'Balanced cash outflow',
@@ -36,7 +54,7 @@ export default function BusinessSnapshot() {
     {
       id: 'invoices',
       label: 'Invoices',
-      value: '48',
+      value: String(sales.length),
       subtext: '100% digitally recorded',
       icon: FileCheck2,
       color: 'text-[#123B78]',

@@ -1,75 +1,31 @@
 import React, { useState } from 'react';
 import { FileText, PackageCheck, ArrowUpRight, ArrowDownLeft, Filter, ExternalLink } from 'lucide-react';
+import { useAppState } from '../context/AppStateContext.jsx';
+
+const amountFormatter = new Intl.NumberFormat('en-IN', { maximumFractionDigits: 0 });
+
+function formatAmount(amount) {
+  return `₹${amountFormatter.format(amount || 0)}`;
+}
+
+const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+
+// Renders the stored yyyy-mm-dd as "18 Sep 2026", the shape the table already used.
+function formatDate(isoDate) {
+  if (!isoDate) return '—';
+  const parts = /^(\d{4})-(\d{2})-(\d{2})$/.exec(isoDate);
+  if (!parts) return isoDate;
+  const [, year, month, day] = parts;
+  return `${day} ${MONTHS[Number(month) - 1]} ${year}`;
+}
 
 export default function RecentActivityTable({ onTriggerComingSoon }) {
+  const { records } = useAppState();
   const [filter, setFilter] = useState('ALL');
 
-  const activities = [
-    {
-      id: 'TXN-9021',
-      date: '18 Sep 2026',
-      type: 'Invoice',
-      party: 'ABC Traders',
-      amount: '₹2,40,000',
-      status: 'Paid',
-      statusStyle: 'bg-emerald-50 text-emerald-700 border-emerald-200',
-      direction: 'credit',
-    },
-    {
-      id: 'TXN-9020',
-      date: '17 Sep 2026',
-      type: 'GRN',
-      party: 'XYZ Suppliers',
-      amount: '₹1,80,000',
-      status: 'Received',
-      statusStyle: 'bg-blue-50 text-[#1265A8] border-blue-200',
-      direction: 'debit',
-    },
-    {
-      id: 'TXN-9019',
-      date: '16 Sep 2026',
-      type: 'Invoice',
-      party: 'Kumar Retail',
-      amount: '₹95,000',
-      status: 'Pending',
-      statusStyle: 'bg-amber-50 text-amber-700 border-amber-200',
-      direction: 'credit',
-    },
-    {
-      id: 'TXN-9018',
-      date: '15 Sep 2026',
-      type: 'Invoice',
-      party: 'Sharma Textiles',
-      amount: '₹3,10,000',
-      status: 'Paid',
-      statusStyle: 'bg-emerald-50 text-emerald-700 border-emerald-200',
-      direction: 'credit',
-    },
-    {
-      id: 'TXN-9017',
-      date: '14 Sep 2026',
-      type: 'GRN',
-      party: 'Bharat Steel Mills',
-      amount: '₹4,25,000',
-      status: 'Received',
-      statusStyle: 'bg-blue-50 text-[#1265A8] border-blue-200',
-      direction: 'debit',
-    },
-    {
-      id: 'TXN-9016',
-      date: '12 Sep 2026',
-      type: 'Invoice',
-      party: 'Gupta & Sons Ltd',
-      amount: '₹1,50,000',
-      status: 'Pending',
-      statusStyle: 'bg-amber-50 text-amber-700 border-amber-200',
-      direction: 'credit',
-    },
-  ];
-
-  const filteredActivities = activities.filter((act) => {
-    if (filter === 'INVOICE') return act.type === 'Invoice';
-    if (filter === 'GRN') return act.type === 'GRN';
+  const filteredActivities = records.filter((record) => {
+    if (filter === 'INVOICE') return record.type === 'Sale';
+    if (filter === 'GRN') return record.type === 'Purchase';
     return true;
   });
 
@@ -131,19 +87,19 @@ export default function RecentActivityTable({ onTriggerComingSoon }) {
               >
                 {/* Date */}
                 <td className="py-3.5 px-3 font-medium text-[#172033] whitespace-nowrap text-xs md:text-sm">
-                  {row.date}
+                  {formatDate(row.date)}
                 </td>
 
                 {/* Type */}
                 <td className="py-3.5 px-3 whitespace-nowrap">
                   <span
                     className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs font-semibold ${
-                      row.type === 'Invoice'
+                      row.type === 'Sale'
                         ? 'bg-[#E8F7F3] text-[#123B78]'
                         : 'bg-blue-50 text-[#1265A8]'
                     }`}
                   >
-                    {row.type === 'Invoice' ? (
+                    {row.type === 'Sale' ? (
                       <FileText className="w-3.5 h-3.5 text-[#10B8A5]" />
                     ) : (
                       <PackageCheck className="w-3.5 h-3.5 text-[#1265A8]" />
@@ -159,13 +115,17 @@ export default function RecentActivityTable({ onTriggerComingSoon }) {
 
                 {/* Amount */}
                 <td className="py-3.5 px-3 text-right font-mono font-bold text-[#172033] text-xs md:text-sm whitespace-nowrap">
-                  {row.amount}
+                  {formatAmount(row.amount)}
                 </td>
 
                 {/* Status */}
                 <td className="py-3.5 px-3 text-center whitespace-nowrap">
                   <span
-                    className={`inline-block px-2.5 py-0.5 rounded-full text-xs font-semibold border ${row.statusStyle}`}
+                    className={`inline-block px-2.5 py-0.5 rounded-full text-xs font-semibold border ${
+                      row.status === 'Verified'
+                        ? 'bg-[#E8F7F3] text-[#123B78] border-[#10B8A5]/30'
+                        : 'bg-slate-100 text-[#526174] border-slate-200'
+                    }`}
                   >
                     {row.status}
                   </span>
