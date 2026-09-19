@@ -1,7 +1,32 @@
-import React from 'react';
-import { ArrowLeft, PackagePlus, Sparkles, Lock } from 'lucide-react';
+import React, { useState } from 'react';
+import { ArrowLeft, PackagePlus, Sparkles, Lock, CheckCircle2 } from 'lucide-react';
+import { useAppState } from '../context/AppStateContext.jsx';
 
 export default function GRNPage({ onBackToDashboard, onTriggerComingSoon }) {
+  const { addRecord } = useAppState();
+
+  const [supplier, setSupplier] = useState('XYZ Industrial Supplies Ltd');
+  const [grnDate, setGrnDate] = useState('2026-09-18');
+  const [totalValue, setTotalValue] = useState('180000');
+  const [savedMessage, setSavedMessage] = useState('');
+
+  const handleSubmit = (e) => {
+    e.preventDefault();
+
+    const record = addRecord({
+      type: 'Purchase',
+      party: supplier,
+      amount: Number(totalValue),
+      date: grnDate,
+      status: 'Unverified',
+    });
+
+    setSavedMessage(`Purchase recorded — ${record.id}`);
+    setSupplier('');
+    setGrnDate('');
+    setTotalValue('');
+  };
+
   return (
     <div className="space-y-6 max-w-4xl mx-auto">
       {/* Top Breadcrumb / Back button */}
@@ -52,13 +77,7 @@ export default function GRNPage({ onBackToDashboard, onTriggerComingSoon }) {
         </div>
 
         {/* Visual GRN Form Layout (Disabled/Demonstration) */}
-        <form
-          onSubmit={(e) => {
-            e.preventDefault();
-            onTriggerComingSoon();
-          }}
-          className="mt-8 space-y-6"
-        >
+        <form onSubmit={handleSubmit} className="mt-8 space-y-6">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
             {/* Supplier Name */}
             <div>
@@ -67,9 +86,10 @@ export default function GRNPage({ onBackToDashboard, onTriggerComingSoon }) {
               </label>
               <input
                 type="text"
-                disabled
-                defaultValue="XYZ Industrial Supplies Ltd"
-                className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 bg-slate-50/70 text-[#172033] text-sm cursor-not-allowed font-medium"
+                required
+                value={supplier}
+                onChange={(e) => setSupplier(e.target.value)}
+                className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 bg-slate-50/70 text-[#172033] text-sm font-medium"
               />
             </div>
 
@@ -92,10 +112,11 @@ export default function GRNPage({ onBackToDashboard, onTriggerComingSoon }) {
                 GRN Date <span className="text-red-500">*</span>
               </label>
               <input
-                type="text"
-                disabled
-                defaultValue="18 Sep 2026"
-                className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 bg-slate-50/70 text-[#172033] text-sm cursor-not-allowed"
+                type="date"
+                required
+                value={grnDate}
+                onChange={(e) => setGrnDate(e.target.value)}
+                className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 bg-slate-50/70 text-[#172033] text-sm"
               />
             </div>
 
@@ -165,10 +186,12 @@ export default function GRNPage({ onBackToDashboard, onTriggerComingSoon }) {
                   Total Value
                 </label>
                 <input
-                  type="text"
-                  disabled
-                  defaultValue="₹ 1,80,000.00"
-                  className="w-full px-3 py-2 rounded-xl border border-slate-200 bg-slate-50/70 text-[#123B78] font-bold text-sm cursor-not-allowed font-mono"
+                  type="number"
+                  min="0"
+                  step="0.01"
+                  value={totalValue}
+                  onChange={(e) => setTotalValue(e.target.value)}
+                  className="w-full px-3 py-2 rounded-xl border border-slate-200 bg-slate-50/70 text-[#123B78] font-bold text-sm font-mono"
                 />
               </div>
             </div>
@@ -183,6 +206,13 @@ export default function GRNPage({ onBackToDashboard, onTriggerComingSoon }) {
             >
               Back to Dashboard
             </button>
+
+            {savedMessage && (
+              <span className="inline-flex items-center gap-1.5 text-xs font-semibold text-[#10B8A5]">
+                <CheckCircle2 className="w-4 h-4" />
+                <span>{savedMessage}</span>
+              </span>
+            )}
 
             <button
               type="submit"
