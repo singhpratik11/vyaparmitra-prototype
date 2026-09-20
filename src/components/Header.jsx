@@ -8,15 +8,16 @@ import {
   Users 
 } from 'lucide-react';
 import Logo from './Logo';
+import { activeCustomer } from '../data/database.js';
 
 export default function Header({ 
   onOpenMobileNav, 
   isSidebarCollapsed, 
   onToggleSidebar,
   currentView,
-  role,
-  roles = [],
-  onRoleChange 
+  actorId,
+  actors = [],
+  onActorChange 
 }) {
   const currentDateStr = "19 Sep 2026";
 
@@ -71,7 +72,7 @@ export default function Header({
 
         <div>
           <h1 className="text-lg md:text-xl font-bold text-[#172033] tracking-tight">
-            Good morning, <span className="text-[#123B78]">ABC Manufacturing</span>
+            Good morning, <span className="text-[#123B78]">{activeCustomer.name}</span>
           </h1>
           <p className="text-xs text-[#526174] font-medium">
             {getSubtext()}
@@ -86,20 +87,20 @@ export default function Header({
           <span>{currentDateStr}</span>
         </div>
 
-        {/* Simulated role switcher — segregation of duties only, no real auth */}
-        {onRoleChange && (
+        {/* Simulated sign-in — segregation of duties only, no real auth */}
+        {onActorChange && (
           <div className="hidden sm:flex items-center gap-1.5 px-3 py-1.5 bg-[#F6F9FB] rounded-lg border border-slate-200/70 text-xs font-medium text-[#526174]">
             <Users className="w-3.5 h-3.5 text-[#1265A8]" />
             <select
-              value={role}
-              onChange={(e) => onRoleChange(e.target.value)}
+              value={actorId}
+              onChange={(e) => onActorChange(e.target.value)}
               aria-label="Simulated role"
-              title="Simulated role — no real authentication"
+              title="Simulated sign-in — no real authentication"
               className="bg-transparent text-xs font-medium text-[#526174] focus:outline-hidden"
             >
-              {roles.map((roleOption) => (
-                <option key={roleOption} value={roleOption}>
-                  {roleOption}
+              {actors.map((option) => (
+                <option key={option.id} value={option.id}>
+                  {option.label}
                 </option>
               ))}
             </select>

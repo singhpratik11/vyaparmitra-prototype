@@ -8,26 +8,37 @@ import GRNPage from './components/GRNPage';
 import LenderProfilePage from './components/LenderProfilePage';
 import ComingSoonModal from './components/ComingSoonModal';
 import { X } from 'lucide-react';
+import { activeUsers } from './data/database.js';
 
 // Simulated segregation of duties — no real auth, no server check.
-const ROLES = ['Owner', 'Billing clerk', 'Warehouse clerk', 'Finance', 'Lender'];
-
+// Role names match the Role column of the workbook's Users sheet.
 const ROLE_VIEWS = {
   Owner: ['home', 'dashboard', 'create-invoice', 'create-grn'],
-  'Billing clerk': ['create-invoice'],
-  'Warehouse clerk': ['create-grn'],
+  'Billing Clerk': ['create-invoice'],
+  'Warehouse Clerk': ['create-grn'],
   Finance: ['home', 'dashboard', 'create-invoice', 'create-grn'],
   Lender: ['profile'],
 };
 
+// This plant's employees, plus the external lending partner (not a platform user).
+const ACTORS = [
+  ...activeUsers.map((user) => ({
+    id: user.employeeId,
+    label: `${user.name} · ${user.role}`,
+    role: user.role,
+  })),
+  { id: 'LENDER', label: 'Lending partner · Lender', role: 'Lender' },
+];
+
 export default function App() {
-  const [role, setRole] = useState('Owner');
+  const [actorId, setActorId] = useState(ACTORS[0].id);
   const [currentView, setCurrentView] = useState('home');
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
   const [isComingSoonOpen, setIsComingSoonOpen] = useState(false);
   const [isMobileNavOpen, setIsMobileNavOpen] = useState(false);
 
-  const allowedViews = ROLE_VIEWS[role];
+  const actor = ACTORS.find((item) => item.id === actorId) || ACTORS[0];
+  const allowedViews = ROLE_VIEWS[actor.role] || [];
   // Any view outside the role falls back to that role's first allowed view.
   const activeView = allowedViews.includes(currentView) ? currentView : allowedViews[0];
 
@@ -36,9 +47,10 @@ export default function App() {
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
-  const handleRoleChange = (nextRole) => {
-    setRole(nextRole);
-    setCurrentView(ROLE_VIEWS[nextRole][0]);
+  const handleActorChange = (nextActorId) => {
+    const nextActor = ACTORS.find((item) => item.id === nextActorId) || ACTORS[0];
+    setActorId(nextActor.id);
+    setCurrentView((ROLE_VIEWS[nextActor.role] || [])[0]);
     setIsMobileNavOpen(false);
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
@@ -114,9 +126,9 @@ export default function App() {
             isSidebarCollapsed={isSidebarCollapsed}
             onToggleSidebar={() => setIsSidebarCollapsed(!isSidebarCollapsed)}
             currentView={activeView}
-            role={role}
-            roles={ROLES}
-            onRoleChange={handleRoleChange}
+            actorId={actorId}
+            actors={ACTORS}
+            onActorChange={handleActorChange}
           />
 
           <main className="flex-1 p-4 md:p-8 max-w-7xl w-full mx-auto">

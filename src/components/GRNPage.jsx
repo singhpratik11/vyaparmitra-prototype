@@ -1,28 +1,31 @@
 import React, { useState } from 'react';
 import { ArrowLeft, PackagePlus, Sparkles, Lock, CheckCircle2 } from 'lucide-react';
 import { useAppState } from '../context/AppStateContext.jsx';
+import { activeSuppliers } from '../data/database.js';
 
 export default function GRNPage({ onBackToDashboard, onTriggerComingSoon }) {
   const { addRecord } = useAppState();
 
-  const [supplier, setSupplier] = useState('XYZ Industrial Supplies Ltd');
+  const [supplierId, setSupplierId] = useState(activeSuppliers[0].supplierId);
   const [grnDate, setGrnDate] = useState('2026-09-18');
   const [totalValue, setTotalValue] = useState('180000');
   const [savedMessage, setSavedMessage] = useState('');
+
+  const selectedSupplier = activeSuppliers.find((item) => item.supplierId === supplierId) || null;
 
   const handleSubmit = (e) => {
     e.preventDefault();
 
     const record = addRecord({
       type: 'Purchase',
-      party: supplier,
+      party: selectedSupplier ? selectedSupplier.name : '',
       amount: Number(totalValue),
       date: grnDate,
       status: 'Unverified',
     });
 
     setSavedMessage(`Purchase recorded — ${record.id}`);
-    setSupplier('');
+    setSupplierId('');
     setGrnDate('');
     setTotalValue('');
   };
@@ -84,13 +87,19 @@ export default function GRNPage({ onBackToDashboard, onTriggerComingSoon }) {
               <label className="block text-xs font-bold text-[#172033] uppercase tracking-wider mb-2">
                 Supplier Name <span className="text-red-500">*</span>
               </label>
-              <input
-                type="text"
+              <select
                 required
-                value={supplier}
-                onChange={(e) => setSupplier(e.target.value)}
+                value={supplierId}
+                onChange={(e) => setSupplierId(e.target.value)}
                 className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 bg-slate-50/70 text-[#172033] text-sm font-medium"
-              />
+              >
+                <option value="">Select supplier</option>
+                {activeSuppliers.map((item) => (
+                  <option key={item.supplierId} value={item.supplierId}>
+                    {item.name} ({item.supplierId})
+                  </option>
+                ))}
+              </select>
             </div>
 
             {/* Supplier GSTIN */}
@@ -101,7 +110,8 @@ export default function GRNPage({ onBackToDashboard, onTriggerComingSoon }) {
               <input
                 type="text"
                 disabled
-                defaultValue="24AAACX1289P1ZK"
+                readOnly
+                value={selectedSupplier ? selectedSupplier.gstin : ''}
                 className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 bg-slate-50/70 text-[#172033] text-sm cursor-not-allowed font-mono"
               />
             </div>

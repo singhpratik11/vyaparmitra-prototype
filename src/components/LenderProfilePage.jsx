@@ -2,6 +2,7 @@ import React from 'react';
 import { BadgeCheck, ShieldCheck, Clock, CheckCircle2, Lock } from 'lucide-react';
 import CreditworthinessCard from './CreditworthinessCard';
 import { useAppState } from '../context/AppStateContext.jsx';
+import { activeCustomer } from '../data/database.js';
 
 const DECISIONS = ['Approve', 'Make offer', 'Decline'];
 
@@ -46,7 +47,7 @@ export default function LenderProfilePage() {
           </div>
 
           <h1 className="text-2xl md:text-3xl font-bold text-[#172033] tracking-tight">
-            ABC Manufacturing
+            {activeCustomer.name}
           </h1>
           <p className="text-xs md:text-sm text-[#526174] mt-0.5">
             Shared with your consent. Read-only — you present readiness, the partner decides.

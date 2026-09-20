@@ -12,6 +12,7 @@ import {
   ArrowUpRight
 } from 'lucide-react';
 import BusinessFlowVisual from './BusinessFlowVisual';
+import { activeCustomer } from '../data/database.js';
 
 export default function HomePage({ onNavigate, onTriggerComingSoon }) {
   return (
@@ -29,7 +30,7 @@ export default function HomePage({ onNavigate, onTriggerComingSoon }) {
             </div>
 
             <h1 className="text-2xl md:text-3xl lg:text-4xl font-extrabold text-[#172033] tracking-tight">
-              Namaste, <span className="text-[#123B78]">ABC Manufacturing</span>
+              Namaste, <span className="text-[#123B78]">{activeCustomer.name}</span>
             </h1>
 
             <p className="text-sm md:text-base text-[#526174] leading-relaxed">

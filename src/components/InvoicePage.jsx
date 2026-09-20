@@ -1,6 +1,14 @@
 import React, { useState } from 'react';
 import { ArrowLeft, FilePlus2, Sparkles, AlertCircle, Info, Lock, CheckCircle2 } from 'lucide-react';
 import { useAppState } from '../context/AppStateContext.jsx';
+import { activeItems } from '../data/database.js';
+
+/** 0.28 -> "28% (14% CGST + 14% SGST)", the split the form already displayed. */
+function formatGst(gstRate) {
+  if (gstRate === undefined || gstRate === null) return '';
+  const pct = (value) => Number((value * 100).toFixed(2));
+  return `${pct(gstRate)}% (${pct(gstRate / 2)}% CGST + ${pct(gstRate / 2)}% SGST)`;
+}
 
 export default function InvoicePage({ onBackToDashboard, onTriggerComingSoon }) {
   const { addRecord } = useAppState();
@@ -8,9 +16,18 @@ export default function InvoicePage({ onBackToDashboard, onTriggerComingSoon }) 
   const [buyer, setBuyer] = useState('Sharma Enterprises Pvt Ltd');
   const [invoiceDate, setInvoiceDate] = useState('2026-09-18');
   const [paymentTermsDays, setPaymentTermsDays] = useState('30');
+  const [itemCode, setItemCode] = useState(activeItems[0].code);
   const [quantity, setQuantity] = useState('250');
-  const [rate, setRate] = useState('960');
+  const [rate, setRate] = useState(String(activeItems[0].unitPrice));
   const [savedMessage, setSavedMessage] = useState('');
+
+  const selectedItem = activeItems.find((item) => item.code === itemCode) || null;
+
+  const handleItemChange = (nextCode) => {
+    setItemCode(nextCode);
+    const nextItem = activeItems.find((item) => item.code === nextCode);
+    setRate(nextItem ? String(nextItem.unitPrice) : '');
+  };
 
   const handleSubmit = (e) => {
     e.preventDefault();
@@ -28,6 +45,7 @@ export default function InvoicePage({ onBackToDashboard, onTriggerComingSoon }) 
     setBuyer('');
     setInvoiceDate('');
     setPaymentTermsDays('');
+    setItemCode('');
     setQuantity('');
     setRate('');
   };
@@ -152,12 +170,18 @@ export default function InvoicePage({ onBackToDashboard, onTriggerComingSoon }) 
                 <label className="block text-xs font-semibold text-[#172033] mb-1.5">
                   Product / Service Description
                 </label>
-                <input
-                  type="text"
-                  disabled
-                  defaultValue="Precision Machined Component #MC-402"
-                  className="w-full px-3 py-2 rounded-xl border border-slate-200 bg-slate-50/70 text-[#172033] text-sm cursor-not-allowed"
-                />
+                <select
+                  value={itemCode}
+                  onChange={(e) => handleItemChange(e.target.value)}
+                  className="w-full px-3 py-2 rounded-xl border border-slate-200 bg-slate-50/70 text-[#172033] text-sm"
+                >
+                  <option value="">Select item</option>
+                  {activeItems.map((item) => (
+                    <option key={item.code} value={item.code}>
+                      {item.name} ({item.code})
+                    </option>
+                  ))}
+                </select>
               </div>
 
               {/* Quantity */}
@@ -197,7 +221,8 @@ export default function InvoicePage({ onBackToDashboard, onTriggerComingSoon }) 
                 <input
                   type="text"
                   disabled
-                  defaultValue="18% (9% CGST + 9% SGST)"
+                  readOnly
+                  value={formatGst(selectedItem?.gstRate)}
                   className="w-full px-3 py-2 rounded-xl border border-slate-200 bg-slate-50/70 text-[#172033] text-sm cursor-not-allowed"
                 />
               </div>

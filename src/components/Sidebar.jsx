@@ -11,6 +11,7 @@ import {
   ChevronRight
 } from 'lucide-react';
 import Logo from './Logo';
+import { activeCustomer } from '../data/database.js';
 
 export default function Sidebar({ 
   currentView, 
@@ -166,13 +167,13 @@ export default function Sidebar({
         {isCollapsed ? (
           <div 
             className="relative group p-2 rounded-xl bg-white border border-slate-200/70 shadow-2xs cursor-pointer flex items-center justify-center"
-            title="ABC Manufacturing - GSTIN: 27AABCA1234F1ZP"
+            title={`${activeCustomer.name} - GSTIN: ${activeCustomer.gstin}`}
           >
             <Building2 className="w-5 h-5 text-[#1265A8]" />
             {/* Tooltip */}
             <div className="hidden md:group-hover:block absolute left-full bottom-0 ml-3 p-3 bg-[#172033] text-white rounded-xl shadow-lg whitespace-nowrap z-50 pointer-events-none">
-              <p className="text-xs font-bold">ABC Manufacturing</p>
-              <p className="text-[11px] font-mono text-slate-300">GSTIN: 27AABCA1234F1ZP</p>
+              <p className="text-xs font-bold">{activeCustomer.name}</p>
+              <p className="text-[11px] font-mono text-slate-300">GSTIN: {activeCustomer.gstin}</p>
               <p className="text-[10px] text-[#10B8A5] mt-1 font-semibold">● MSME Registered</p>
             </div>
           </div>
@@ -185,12 +186,12 @@ export default function Sidebar({
               <div className="min-w-0 flex-1">
                 <div className="flex items-center gap-1.5">
                   <span className="text-xs font-bold text-[#172033] truncate">
-                    ABC Manufacturing
+                    {activeCustomer.name}
                   </span>
                   <CheckCircle2 className="w-3.5 h-3.5 text-[#10B8A5] flex-shrink-0" />
                 </div>
                 <p className="text-[11px] font-mono text-[#526174] truncate mt-0.5">
-                  GSTIN: 27AABCA1234F1ZP
+                  GSTIN: {activeCustomer.gstin}
                 </p>
                 <div className="mt-1.5 flex items-center gap-1.5">
                   <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-medium bg-slate-100 text-[#526174]">
