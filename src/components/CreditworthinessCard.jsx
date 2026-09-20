@@ -141,10 +141,10 @@ export default function CreditworthinessCard() {
             <p className="text-base font-bold text-[#123B78] mt-1">{formatShare(onTimeShare)}</p>
             <p className="text-[10px] text-[#526174]">
               {onTimeShare === null
-                ? 'Insufficient payment history'
-                : payment.selfReportedExcluded
-                  ? `${payment.selfReportedExcluded} self-reported excluded`
-                  : 'Corroborated payments only'}
+                ? 'Insufficient verified payment history'
+                : payment.unverifiedExcluded
+                  ? `${payment.unverifiedExcluded} unverified excluded`
+                  : 'Bank-confirmed payments only'}
             </p>
           </div>
 

@@ -1,19 +1,19 @@
 import React, { useEffect, useState } from 'react';
 import { X, ArrowRight, Info } from 'lucide-react';
 import Logo from './Logo';
-import { PAYMENT_SOURCES, todayIsoDate } from '../context/AppStateContext.jsx';
+import { todayIsoDate } from '../context/AppStateContext.jsx';
 
 export default function RecordPaymentModal({ isOpen, record, onClose, onSubmit }) {
   const [amountPaid, setAmountPaid] = useState('');
   const [paidDate, setPaidDate] = useState('');
-  const [paymentSource, setPaymentSource] = useState(null);
+  const [receiptFileName, setReceiptFileName] = useState(null);
 
   // Reopening for another row starts from that row's own figures.
   useEffect(() => {
     if (!isOpen || !record) return;
     setAmountPaid(String(record.amountPaid || record.amount || ''));
     setPaidDate(record.paidDate || todayIsoDate());
-    setPaymentSource(record.paymentSource || null);
+    setReceiptFileName(record.receiptFileName || null);
   }, [isOpen, record]);
 
   useEffect(() => {
@@ -69,7 +69,7 @@ export default function RecordPaymentModal({ isOpen, record, onClose, onSubmit }
         <form
           onSubmit={(e) => {
             e.preventDefault();
-            onSubmit({ amountPaid, paidDate, paymentSource });
+            onSubmit({ amountPaid, paidDate, receiptFileName });
           }}
           className="mt-6 space-y-6"
         >
@@ -105,32 +105,25 @@ export default function RecordPaymentModal({ isOpen, record, onClose, onSubmit }
 
           <div>
             <label className="block text-xs font-bold text-[#172033] uppercase tracking-wider mb-2">
-              Payment Source <span className="text-red-500">*</span>
+              Receipt — reference only, not used for verification
             </label>
 
-            <div className="flex flex-wrap items-center gap-2.5">
-              {PAYMENT_SOURCES.map((source) => (
-                <button
-                  key={source}
-                  type="button"
-                  onClick={() => setPaymentSource(source)}
-                  className={`inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-xs font-bold shadow-2xs transition-colors ${
-                    paymentSource === source
-                      ? 'bg-[#123B78] text-white'
-                      : 'bg-white border border-slate-200/80 text-[#123B78] hover:bg-slate-50'
-                  }`}
-                >
-                  <span>{source}</span>
-                </button>
-              ))}
-            </div>
+            <input
+              type="file"
+              onChange={(e) => setReceiptFileName(e.target.files?.[0]?.name || null)}
+              className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 bg-slate-50/70 text-[#172033] text-sm"
+            />
+
+            {receiptFileName && (
+              <p className="mt-1.5 text-[11px] font-mono text-[#526174] truncate">{receiptFileName}</p>
+            )}
 
             <div className="mt-3 p-3.5 rounded-xl bg-[#F6F9FB] border border-slate-200/70 text-left flex items-start gap-2">
               <Info className="w-3.5 h-3.5 flex-shrink-0 mt-0.5 text-[#1265A8]" />
               <p className="text-xs text-[#526174] leading-relaxed">
-                Prototype — payment verification simulated. Bank-matched and buyer-confirmed payments
-                are corroborated and count toward your on-time record; self-reported payments are shown
-                but left out of it.
+                Prototype — bank verification simulated. Logging a receipt clears the reminder but stays
+                unverified, and an attached file never changes that. Only a bank match counts toward your
+                on-time record.
               </p>
             </div>
           </div>
@@ -146,10 +139,9 @@ export default function RecordPaymentModal({ isOpen, record, onClose, onSubmit }
 
             <button
               type="submit"
-              disabled={!paymentSource}
-              className="w-full sm:w-auto inline-flex items-center justify-center gap-2 px-6 py-3 rounded-xl bg-[#123B78] hover:bg-[#1265A8] disabled:bg-slate-200 disabled:text-[#526174] text-white font-bold text-sm shadow-xs transition-colors"
+              className="w-full sm:w-auto inline-flex items-center justify-center gap-2 px-6 py-3 rounded-xl bg-[#123B78] hover:bg-[#1265A8] text-white font-bold text-sm shadow-xs transition-colors"
             >
-              <span>Record Payment</span>
+              <span>Log receipt</span>
               <ArrowRight className="w-4 h-4" />
             </button>
           </div>

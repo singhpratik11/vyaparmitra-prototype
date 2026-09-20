@@ -3,11 +3,20 @@ import { activeSuppliers } from '../data/database.js';
 
 const STORAGE_KEY = 'vyaparmitra:appState:v1';
 
-/** Simulated only — no bank or Account Aggregator call is ever made. */
-export const PAYMENT_SOURCES = ['Bank-matched (AA)', 'Buyer-confirmed', 'Self-reported'];
+/**
+ * Payment proof is two-state. Logging a receipt is good enough to clear a reminder but
+ * is NOT credit-grade; only a simulated Account Aggregator match is. The user can reach
+ * the first state, never the second.
+ */
+export const PAYMENT_PROOF_LOGGED = 'Received (unverified)';
+export const PAYMENT_PROOF_CONFIRMED = 'Bank-confirmed';
 
-/** A payment only counts toward on-time % when someone other than the MSME confirms it. */
-const CORROBORATED_SOURCES = ['Bank-matched (AA)', 'Buyer-confirmed'];
+/** Maps the retired three-value paymentSource onto the two proof states. */
+const LEGACY_SOURCE_PROOF = {
+  'Bank-matched (AA)': PAYMENT_PROOF_CONFIRMED,
+  'Buyer-confirmed': PAYMENT_PROOF_LOGGED,
+  'Self-reported': PAYMENT_PROOF_LOGGED,
+};
 
 const DAY_MS = 24 * 60 * 60 * 1000;
 
@@ -82,8 +91,8 @@ export function getDaysLate(record) {
   return Math.round((paid - due) / DAY_MS);
 }
 
-export function isCorroborated(record) {
-  return CORROBORATED_SOURCES.includes(record?.paymentSource);
+export function isBankConfirmed(record) {
+  return record?.paymentProof === PAYMENT_PROOF_CONFIRMED;
 }
 
 /** An invoice has matured once its due date has passed. */
@@ -93,20 +102,20 @@ export function hasMatured(record, today = todayIsoDate()) {
 }
 
 /**
- * On-time % = corroborated payments made on/before the due date, over corroborated
- * payments on matured invoices. Self-reported payments are shown in the ledger but
- * deliberately excluded here, so they cannot inflate readiness.
+ * On-time % = bank-confirmed payments made on/before the due date, over bank-confirmed
+ * payments on matured invoices. Logged-but-unverified receipts are shown in the ledger
+ * but deliberately excluded here, so a self-reported receipt cannot inflate readiness.
  */
 export function getPaymentPerformance(records, today = todayIsoDate()) {
-  const corroborated = records.filter((record) => isCorroborated(record) && record.paidDate);
-  const considered = corroborated.filter((record) => hasMatured(record, today));
+  const confirmed = records.filter((record) => isBankConfirmed(record) && record.paidDate);
+  const considered = confirmed.filter((record) => hasMatured(record, today));
   const onTime = considered.filter((record) => (getDaysLate(record) ?? 1) <= 0);
 
   return {
     onTimeShare: considered.length ? onTime.length / considered.length : null,
     consideredCount: considered.length,
     onTimeCount: onTime.length,
-    selfReportedExcluded: records.filter((record) => record.paymentSource === 'Self-reported').length,
+    unverifiedExcluded: records.filter((record) => record.paymentProof === PAYMENT_PROOF_LOGGED).length,
     receivableCount: considered.filter((record) => record.paymentDirection === 'Receivable').length,
     payableCount: considered.filter((record) => record.paymentDirection === 'Payable').length,
   };
@@ -122,11 +131,12 @@ export function getPaymentPerformance(records, today = todayIsoDate()) {
  * @property {number} paymentTermsDays
  * @property {'Unverified'|'Verified'} status
  * @property {string|null} verificationSource
- * @property {boolean|null} paidOnTime   Derived from a CORROBORATED payment only; null otherwise.
+ * @property {boolean|null} paidOnTime   Derived from a BANK-CONFIRMED payment only; null otherwise.
  * @property {'Unpaid'|'Partially Paid'|'Paid'} paymentStatus
  * @property {number} amountPaid
  * @property {string|null} paidDate      ISO date the money actually moved.
- * @property {string|null} paymentSource One of PAYMENT_SOURCES.
+ * @property {string|null} paymentProof  PAYMENT_PROOF_LOGGED or PAYMENT_PROOF_CONFIRMED.
+ * @property {string|null} receiptFileName Reference only — never affects proof or the score.
  * @property {'Receivable'|'Payable'|null} paymentDirection  Sale = buyer pays us, Purchase = we pay.
  */
 
@@ -164,14 +174,22 @@ function readPersistedState() {
 
 /** Fills the payment fields so records saved before this layer existed still work. */
 function withPaymentDefaults(record) {
-  return {
-    ...record,
+  const { paymentSource, ...rest } = record || {};
+  const next = {
+    ...rest,
     paymentStatus: record?.paymentStatus ?? 'Unpaid',
     amountPaid: Number(record?.amountPaid) || 0,
     paidDate: record?.paidDate ?? null,
-    paymentSource: record?.paymentSource ?? null,
+    paymentProof: record?.paymentProof ?? LEGACY_SOURCE_PROOF[paymentSource] ?? null,
+    receiptFileName: record?.receiptFileName ?? null,
     paymentDirection: record?.paymentDirection ?? (record?.type === 'Purchase' ? 'Payable' : 'Receivable'),
   };
+
+  // Anything short of a bank match must not carry an on-time flag from the old model.
+  if (next.paymentProof !== PAYMENT_PROOF_CONFIRMED) {
+    next.paidOnTime = null;
+  }
+  return next;
 }
 
 function createRecordId() {
@@ -223,12 +241,10 @@ export function AppStateProvider({ children }) {
   }, []);
 
   /**
-   * Simulated payment capture. paymentStatus follows amountPaid against the invoice
-   * total, and paidOnTime is refreshed as a derived convenience for corroborated
-   * payments only — a self-reported payment leaves it null, so it stays out of every
-   * metric that reads it.
+   * Logs a receipt. Clears the reminder and marks the record paid, but the proof is
+   * only ever PAYMENT_PROOF_LOGGED — the user cannot reach the confirmed state here.
    */
-  const recordPayment = useCallback((id, { amountPaid, paidDate, paymentSource }) => {
+  const recordPayment = useCallback((id, { amountPaid, paidDate, receiptFileName }) => {
     setState((prev) => ({
       ...prev,
       records: prev.records.map((record) => {
@@ -240,13 +256,33 @@ export function AppStateProvider({ children }) {
           ...record,
           amountPaid: paid,
           paidDate: paid > 0 ? paidDate || null : null,
-          paymentSource: paid > 0 ? paymentSource ?? null : null,
+          paymentProof: paid > 0 ? PAYMENT_PROOF_LOGGED : null,
+          receiptFileName: receiptFileName ?? record.receiptFileName ?? null,
           paymentStatus: paid <= 0 ? 'Unpaid' : paid >= total ? 'Paid' : 'Partially Paid',
           paymentDirection: record.type === 'Purchase' ? 'Payable' : 'Receivable',
         };
 
+        // A logged receipt is never credit-grade, so this stays null until a bank match.
+        next.paidOnTime = null;
+        return next;
+      }),
+    }));
+  }, []);
+
+  /**
+   * Simulated Account Aggregator match — no bank call is made. It confirms the inflow
+   * already logged against the invoice rather than inventing a different date, and takes
+   * no user input, because the MSME does not control bank confirmation.
+   */
+  const bankMatchPayment = useCallback((id) => {
+    setState((prev) => ({
+      ...prev,
+      records: prev.records.map((record) => {
+        if (record.id !== id || !record.paidDate) return record;
+
+        const next = { ...record, paymentProof: PAYMENT_PROOF_CONFIRMED };
         const daysLate = getDaysLate(next);
-        next.paidOnTime = isCorroborated(next) && daysLate !== null ? daysLate <= 0 : null;
+        next.paidOnTime = daysLate !== null ? daysLate <= 0 : null;
         return next;
       }),
     }));
@@ -265,6 +301,7 @@ export function AppStateProvider({ children }) {
       addRecord,
       verifyRecord,
       recordPayment,
+      bankMatchPayment,
       setProfileShared,
       setLenderDecision,
     }),
@@ -275,6 +312,7 @@ export function AppStateProvider({ children }) {
       addRecord,
       verifyRecord,
       recordPayment,
+      bankMatchPayment,
       setProfileShared,
       setLenderDecision,
     ]
