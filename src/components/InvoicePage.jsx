@@ -3,30 +3,40 @@ import { ArrowLeft, FilePlus2, Sparkles, AlertCircle, Info, Lock, CheckCircle2 }
 import { useAppState } from '../context/AppStateContext.jsx';
 import { useSession } from '../context/SessionContext.jsx';
 
-/** 0.28 -> "28% (14% CGST + 14% SGST)", the split the form already displayed. */
-function formatGst(gstRate) {
-  if (gstRate === undefined || gstRate === null) return '';
-  const pct = (value) => Number((value * 100).toFixed(2));
-  return `${pct(gstRate)}% (${pct(gstRate / 2)}% CGST + ${pct(gstRate / 2)}% SGST)`;
+/** 28 -> "28% (14% CGST + 14% SGST)", the split the form already displayed. */
+function formatGst(gstPct) {
+  if (gstPct === undefined || gstPct === null) return '';
+  const half = Number((gstPct / 2).toFixed(2));
+  return `${gstPct}% (${half}% CGST + ${half}% SGST)`;
 }
 
 export default function InvoicePage({ onBackToDashboard, onTriggerComingSoon }) {
   const { addRecord } = useAppState();
-  const { items: activeItems } = useSession();
+  const { items: activeItems, buyers: activeBuyers } = useSession();
 
-  const [buyer, setBuyer] = useState('Sharma Enterprises Pvt Ltd');
+  const [buyerId, setBuyerId] = useState(activeBuyers[0]?.buyerId || '');
   const [invoiceDate, setInvoiceDate] = useState('2026-09-18');
-  const [paymentTermsDays, setPaymentTermsDays] = useState('30');
-  const [itemCode, setItemCode] = useState(activeItems[0]?.code || '');
+  const [paymentTermsDays, setPaymentTermsDays] = useState(
+    String(activeBuyers[0]?.paymentTermsDays ?? '')
+  );
+  const [itemCode, setItemCode] = useState(activeItems[0]?.itemCode || '');
   const [quantity, setQuantity] = useState('250');
   const [rate, setRate] = useState(String(activeItems[0]?.unitPrice ?? ''));
   const [savedMessage, setSavedMessage] = useState('');
 
-  const selectedItem = activeItems.find((item) => item.code === itemCode) || null;
+  const selectedBuyer = activeBuyers.find((item) => item.buyerId === buyerId) || null;
+  const selectedItem = activeItems.find((item) => item.itemCode === itemCode) || null;
+
+  /** Picking a buyer autofills their GSTIN and agreed payment terms. */
+  const handleBuyerChange = (nextBuyerId) => {
+    setBuyerId(nextBuyerId);
+    const nextBuyer = activeBuyers.find((item) => item.buyerId === nextBuyerId);
+    setPaymentTermsDays(nextBuyer ? String(nextBuyer.paymentTermsDays) : '');
+  };
 
   const handleItemChange = (nextCode) => {
     setItemCode(nextCode);
-    const nextItem = activeItems.find((item) => item.code === nextCode);
+    const nextItem = activeItems.find((item) => item.itemCode === nextCode);
     setRate(nextItem ? String(nextItem.unitPrice) : '');
   };
 
@@ -35,7 +45,7 @@ export default function InvoicePage({ onBackToDashboard, onTriggerComingSoon }) 
 
     const record = addRecord({
       type: 'Sale',
-      party: buyer,
+      party: selectedBuyer ? selectedBuyer.name : '',
       amount: Number(quantity) * Number(rate),
       date: invoiceDate,
       paymentTermsDays: Number(paymentTermsDays),
@@ -43,7 +53,7 @@ export default function InvoicePage({ onBackToDashboard, onTriggerComingSoon }) 
     });
 
     setSavedMessage(`Sale recorded — ${record.id}`);
-    setBuyer('');
+    setBuyerId('');
     setInvoiceDate('');
     setPaymentTermsDays('');
     setItemCode('');
@@ -108,13 +118,19 @@ export default function InvoicePage({ onBackToDashboard, onTriggerComingSoon }) 
               <label className="block text-xs font-bold text-[#172033] uppercase tracking-wider mb-2">
                 Customer Name <span className="text-red-500">*</span>
               </label>
-              <input
-                type="text"
+              <select
                 required
-                value={buyer}
-                onChange={(e) => setBuyer(e.target.value)}
+                value={buyerId}
+                onChange={(e) => handleBuyerChange(e.target.value)}
                 className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 bg-slate-50/70 text-[#172033] text-sm font-medium"
-              />
+              >
+                <option value="">Select customer</option>
+                {activeBuyers.map((item) => (
+                  <option key={item.buyerId} value={item.buyerId}>
+                    {item.name} ({item.city})
+                  </option>
+                ))}
+              </select>
             </div>
 
             {/* Customer GSTIN */}
@@ -125,7 +141,8 @@ export default function InvoicePage({ onBackToDashboard, onTriggerComingSoon }) 
               <input
                 type="text"
                 disabled
-                defaultValue="27AAACS8931F1ZM"
+                readOnly
+                value={selectedBuyer ? selectedBuyer.gstin : ''}
                 className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 bg-slate-50/70 text-[#172033] text-sm cursor-not-allowed font-mono"
               />
             </div>
@@ -178,8 +195,8 @@ export default function InvoicePage({ onBackToDashboard, onTriggerComingSoon }) 
                 >
                   <option value="">Select item</option>
                   {activeItems.map((item) => (
-                    <option key={item.code} value={item.code}>
-                      {item.name} ({item.code})
+                    <option key={item.itemCode} value={item.itemCode}>
+                      {item.name} ({item.itemCode})
                     </option>
                   ))}
                 </select>
@@ -223,7 +240,7 @@ export default function InvoicePage({ onBackToDashboard, onTriggerComingSoon }) 
                   type="text"
                   disabled
                   readOnly
-                  value={formatGst(selectedItem?.gstRate)}
+                  value={formatGst(selectedItem?.gstPct)}
                   className="w-full px-3 py-2 rounded-xl border border-slate-200 bg-slate-50/70 text-[#172033] text-sm cursor-not-allowed"
                 />
               </div>

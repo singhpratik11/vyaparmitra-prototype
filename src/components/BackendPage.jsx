@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { Building2, Globe2, Lock } from 'lucide-react';
 import CreditworthinessCard from './CreditworthinessCard';
 import RecentActivityTable from './RecentActivityTable';
-import { customers, suppliersByVendor, itemsByVendor, scoreModel } from '../data/database.js';
+import { customers, suppliersByVendor, itemsByVendor, masterScore } from '../data/database.js';
 import { useSession } from '../context/SessionContext.jsx';
 
 const BAND_STYLES = {
@@ -13,8 +13,8 @@ const BAND_STYLES = {
 
 const amountFormatter = new Intl.NumberFormat('en-IN', { maximumFractionDigits: 0 });
 
-function formatShare(share) {
-  return share === null || share === undefined ? '—' : `${Math.round(share * 100)}%`;
+function formatPct(value) {
+  return value === null || value === undefined ? '—' : `${value}%`;
 }
 
 export default function BackendPage({ onTriggerComingSoon }) {
@@ -169,7 +169,7 @@ export default function BackendPage({ onTriggerComingSoon }) {
                         </thead>
                         <tbody className="divide-y divide-slate-100">
                           {items.map((item) => (
-                            <tr key={item.code}>
+                            <tr key={item.itemCode}>
                               <td className="py-3.5 px-3 font-semibold text-[#172033] text-xs md:text-sm">
                                 {item.name}
                               </td>
@@ -178,10 +178,10 @@ export default function BackendPage({ onTriggerComingSoon }) {
                                 ₹{amountFormatter.format(item.unitPrice)}
                               </td>
                               <td className="py-3.5 px-3 font-mono text-xs md:text-sm text-[#526174]">
-                                {item.hsn}
+                                {item.hsnCode}
                               </td>
                               <td className="py-3.5 px-3 text-right font-mono text-xs md:text-sm text-[#172033]">
-                                {formatShare(item.gstRate)}
+                                {formatPct(item.gstPct)}
                               </td>
                             </tr>
                           ))}
@@ -239,7 +239,7 @@ export default function BackendPage({ onTriggerComingSoon }) {
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100">
-                  {scoreModel.perCustomer.map((row) => {
+                  {masterScore.map((row) => {
                     const customer = customers.find((item) => item.vendorId === row.vendorId);
                     return (
                       <tr key={row.vendorId} className="hover:bg-[#F6F9FB]/80 transition-colors">
@@ -250,16 +250,16 @@ export default function BackendPage({ onTriggerComingSoon }) {
                           {row.vendorId}
                         </td>
                         <td className="py-3.5 px-3 text-right font-mono text-xs md:text-sm text-[#172033]">
-                          {formatShare(row.onTimeShare)}
+                          {formatPct(row.onTimePaymentPct)}
                         </td>
                         <td className="py-3.5 px-3 text-right font-mono text-xs md:text-sm text-[#172033]">
-                          {formatShare(row.verifiedShare)}
+                          {formatPct(row.verifiedTxnsPct)}
                         </td>
                         <td className="py-3.5 px-3 text-right font-mono text-xs md:text-sm text-[#172033]">
-                          {row.monthlyVolumeLakh}
+                          {row.monthlyTradeVolumeLakh}
                         </td>
                         <td className="py-3.5 px-3 text-right font-mono text-xs md:text-sm text-[#172033]">
-                          {formatShare(row.buyerConcentration)}
+                          {formatPct(row.largestBuyerConcentrationPct)}
                         </td>
                         <td className="py-3.5 px-3 text-right font-mono font-bold text-[#123B78] text-xs md:text-sm">
                           {row.weightedScore}
@@ -281,15 +281,8 @@ export default function BackendPage({ onTriggerComingSoon }) {
             </div>
 
             <div className="mt-4 pt-3 border-t border-slate-100 flex flex-col sm:flex-row items-center justify-between text-xs text-[#526174]">
-              <span>
-                Weights — on-time {formatShare(scoreModel.weights.onTime)}, verified{' '}
-                {formatShare(scoreModel.weights.verified)}, volume {formatShare(scoreModel.weights.volume)},
-                diversification {formatShare(scoreModel.weights.diversification)}
-              </span>
-              <span className="mt-2 sm:mt-0">
-                Strong ≥ {scoreModel.thresholds.strong} · Improving ≥ {scoreModel.thresholds.improving} ·
-                target {scoreModel.volumeTargetLakh}₹L
-              </span>
+              <span>Showing {masterScore.length} customers</span>
+              <span className="mt-2 sm:mt-0">Prototype — scores are seeded demo values</span>
             </div>
           </div>
         </section>

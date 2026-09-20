@@ -1,0 +1,458 @@
+{
+  "_note": "VyaparMitra mock database. Fictitious GSTINs. Generated from vyaparmitra-database.xlsx.",
+  "tenants": [
+    {
+      "vendorId": "VM-0001",
+      "name": "Ramesh Auto Components",
+      "gstin": "27AAECR1234R1Z5",
+      "serviceStartDate": "2026-03-15",
+      "nextBillingDate": "2026-10-15",
+      "totalAmountBilled": 36000,
+      "plan": "Standard",
+      "suppliers": [
+        {
+          "supplierId": "SUP-0001",
+          "name": "Pune Steel Traders",
+          "gstin": "27AABFP1234K1Z2",
+          "category": "Raw Material – Steel",
+          "paymentTermsDays": 60
+        },
+        {
+          "supplierId": "SUP-0002",
+          "name": "Deccan Fasteners",
+          "gstin": "27AACFD5678L1Z9",
+          "category": "Components – Fasteners",
+          "paymentTermsDays": 45
+        },
+        {
+          "supplierId": "SUP-0003",
+          "name": "Bharat Rubber Works",
+          "gstin": "27AADFB9012M1Z4",
+          "category": "Raw Material – Rubber",
+          "paymentTermsDays": 30
+        },
+        {
+          "supplierId": "SUP-0004",
+          "name": "Maharashtra Paints & Coatings",
+          "gstin": "27AAEFM3456N1Z7",
+          "category": "Consumables – Paint",
+          "paymentTermsDays": 30
+        },
+        {
+          "supplierId": "SUP-0005",
+          "name": "Pune Steel Trader",
+          "gstin": "27AABFP1234K1Z2",
+          "category": "Raw Material – Steel",
+          "paymentTermsDays": 60
+        },
+        {
+          "supplierId": "SUP-0006",
+          "name": "Sahyadri Logistics",
+          "gstin": "27AAFFS7890P1Z1",
+          "category": "Services – Transport",
+          "paymentTermsDays": 15
+        }
+      ],
+      "items": [
+        {
+          "itemCode": "ITM-0001",
+          "name": "Brake Disc",
+          "unit": "Nos",
+          "unitPrice": 850,
+          "hsnCode": "8708",
+          "gstPct": 28
+        },
+        {
+          "itemCode": "ITM-0002",
+          "name": "Control Arm",
+          "unit": "Nos",
+          "unitPrice": 1250,
+          "hsnCode": "8708",
+          "gstPct": 28
+        },
+        {
+          "itemCode": "ITM-0003",
+          "name": "Suspension Bracket",
+          "unit": "Nos",
+          "unitPrice": 480,
+          "hsnCode": "8708",
+          "gstPct": 28
+        },
+        {
+          "itemCode": "ITM-0004",
+          "name": "Steering Knuckle",
+          "unit": "Nos",
+          "unitPrice": 2100,
+          "hsnCode": "8708",
+          "gstPct": 28
+        },
+        {
+          "itemCode": "ITM-0005",
+          "name": "Wheel Hub Assembly",
+          "unit": "Nos",
+          "unitPrice": 1650,
+          "hsnCode": "8708",
+          "gstPct": 28
+        }
+      ],
+      "buyers": [
+        {
+          "buyerId": "BUY-0001",
+          "name": "Pune OEM Motors Ltd",
+          "gstin": "27AABCP1234Q1Z8",
+          "city": "Pune",
+          "paymentTermsDays": 60
+        },
+        {
+          "buyerId": "BUY-0002",
+          "name": "Nashik Auto Dealers",
+          "gstin": "27AABCN5678R1Z5",
+          "city": "Nashik",
+          "paymentTermsDays": 45
+        },
+        {
+          "buyerId": "BUY-0003",
+          "name": "Bharat Commercial Vehicles",
+          "gstin": "29AABCB9012S1Z2",
+          "city": "Bengaluru",
+          "paymentTermsDays": 90
+        },
+        {
+          "buyerId": "BUY-0004",
+          "name": "Western Spare Parts Co",
+          "gstin": "27AABCW3456T1Z9",
+          "city": "Mumbai",
+          "paymentTermsDays": 30
+        }
+      ]
+    },
+    {
+      "vendorId": "VM-0002",
+      "name": "Shakti Textiles",
+      "gstin": "24AAFCS5678T1Z8",
+      "serviceStartDate": "2026-05-01",
+      "nextBillingDate": "2026-10-01",
+      "totalAmountBilled": 10000,
+      "plan": "Basic",
+      "suppliers": [
+        {
+          "supplierId": "SUP-0001",
+          "name": "Surat Yarn Mills",
+          "gstin": "24AABFS1111A1Z3",
+          "category": "Raw Material – Yarn",
+          "paymentTermsDays": 45
+        },
+        {
+          "supplierId": "SUP-0002",
+          "name": "Gujarat Dyes & Chemicals",
+          "gstin": "24AACFG2222B1Z6",
+          "category": "Raw Material – Dyes",
+          "paymentTermsDays": 30
+        },
+        {
+          "supplierId": "SUP-0003",
+          "name": "Silk Route Traders",
+          "gstin": "24AADFS3333C1Z9",
+          "category": "Raw Material – Silk",
+          "paymentTermsDays": 60
+        },
+        {
+          "supplierId": "SUP-0004",
+          "name": "Western Packaging Co",
+          "gstin": "24AAEFW4444D1Z2",
+          "category": "Consumables – Packaging",
+          "paymentTermsDays": 30
+        },
+        {
+          "supplierId": "SUP-0005",
+          "name": "Surat Yarn Mill",
+          "gstin": "24AABFS1111A1Z3",
+          "category": "Raw Material – Yarn",
+          "paymentTermsDays": 45
+        }
+      ],
+      "items": [
+        {
+          "itemCode": "ITM-0001",
+          "name": "Cotton Fabric Roll",
+          "unit": "Mtr",
+          "unitPrice": 120,
+          "hsnCode": "5208",
+          "gstPct": 5
+        },
+        {
+          "itemCode": "ITM-0002",
+          "name": "Polyester Blend Roll",
+          "unit": "Mtr",
+          "unitPrice": 95,
+          "hsnCode": "5407",
+          "gstPct": 5
+        },
+        {
+          "itemCode": "ITM-0003",
+          "name": "Silk Fabric Roll",
+          "unit": "Mtr",
+          "unitPrice": 340,
+          "hsnCode": "5007",
+          "gstPct": 5
+        },
+        {
+          "itemCode": "ITM-0004",
+          "name": "Printed Cotton Roll",
+          "unit": "Mtr",
+          "unitPrice": 160,
+          "hsnCode": "5208",
+          "gstPct": 5
+        },
+        {
+          "itemCode": "ITM-0005",
+          "name": "Denim Roll",
+          "unit": "Mtr",
+          "unitPrice": 210,
+          "hsnCode": "5209",
+          "gstPct": 5
+        }
+      ],
+      "buyers": [
+        {
+          "buyerId": "BUY-0001",
+          "name": "Ahmedabad Garments Pvt Ltd",
+          "gstin": "24AABCA1111B1Z4",
+          "city": "Ahmedabad",
+          "paymentTermsDays": 45
+        },
+        {
+          "buyerId": "BUY-0002",
+          "name": "Mumbai Fashion House",
+          "gstin": "27AABCM2222C1Z7",
+          "city": "Mumbai",
+          "paymentTermsDays": 60
+        },
+        {
+          "buyerId": "BUY-0003",
+          "name": "Delhi Apparel Traders",
+          "gstin": "07AABCD3333D1Z1",
+          "city": "New Delhi",
+          "paymentTermsDays": 30
+        },
+        {
+          "buyerId": "BUY-0004",
+          "name": "Surat Wholesale Fabrics",
+          "gstin": "24AABCS4444E1Z8",
+          "city": "Surat",
+          "paymentTermsDays": 30
+        }
+      ]
+    },
+    {
+      "vendorId": "VM-0003",
+      "name": "Deccan Pipes & Fittings",
+      "gstin": "36AAGCD9012P1Z3",
+      "serviceStartDate": "2026-04-10",
+      "nextBillingDate": "2026-10-10",
+      "totalAmountBilled": 27000,
+      "plan": "Standard",
+      "suppliers": [
+        {
+          "supplierId": "SUP-0001",
+          "name": "Telangana Polymers",
+          "gstin": "36AABFT1111E1Z5",
+          "category": "Raw Material – PVC Resin",
+          "paymentTermsDays": 60
+        },
+        {
+          "supplierId": "SUP-0002",
+          "name": "South Metal Works",
+          "gstin": "36AACFS2222F1Z8",
+          "category": "Raw Material – Metal",
+          "paymentTermsDays": 45
+        },
+        {
+          "supplierId": "SUP-0003",
+          "name": "Godavari Chemicals",
+          "gstin": "36AADFG3333G1Z1",
+          "category": "Consumables – Adhesive",
+          "paymentTermsDays": 30
+        },
+        {
+          "supplierId": "SUP-0004",
+          "name": "Charminar Transport",
+          "gstin": "36AAEFC4444H1Z4",
+          "category": "Services – Transport",
+          "paymentTermsDays": 15
+        }
+      ],
+      "items": [
+        {
+          "itemCode": "ITM-0001",
+          "name": "PVC Pipe 4 inch",
+          "unit": "Mtr",
+          "unitPrice": 180,
+          "hsnCode": "3917",
+          "gstPct": 18
+        },
+        {
+          "itemCode": "ITM-0002",
+          "name": "CPVC Pipe 1 inch",
+          "unit": "Mtr",
+          "unitPrice": 95,
+          "hsnCode": "3917",
+          "gstPct": 18
+        },
+        {
+          "itemCode": "ITM-0003",
+          "name": "Elbow Joint 90deg",
+          "unit": "Nos",
+          "unitPrice": 35,
+          "hsnCode": "3917",
+          "gstPct": 18
+        },
+        {
+          "itemCode": "ITM-0004",
+          "name": "T-Joint",
+          "unit": "Nos",
+          "unitPrice": 42,
+          "hsnCode": "3917",
+          "gstPct": 18
+        },
+        {
+          "itemCode": "ITM-0005",
+          "name": "Ball Valve",
+          "unit": "Nos",
+          "unitPrice": 220,
+          "hsnCode": "8481",
+          "gstPct": 18
+        }
+      ],
+      "buyers": [
+        {
+          "buyerId": "BUY-0001",
+          "name": "Hyderabad Construction Co",
+          "gstin": "36AABCH1111F1Z6",
+          "city": "Hyderabad",
+          "paymentTermsDays": 60
+        },
+        {
+          "buyerId": "BUY-0002",
+          "name": "Krishna Hardware Stores",
+          "gstin": "36AABCK2222G1Z3",
+          "city": "Vijayawada",
+          "paymentTermsDays": 30
+        },
+        {
+          "buyerId": "BUY-0003",
+          "name": "South Build Materials",
+          "gstin": "29AABCS3333H1Z9",
+          "city": "Bengaluru",
+          "paymentTermsDays": 45
+        }
+      ]
+    }
+  ],
+  "users": [
+    {
+      "vendorId": "VM-0001",
+      "employeeId": "E001",
+      "name": "Ramesh Patel",
+      "role": "Owner"
+    },
+    {
+      "vendorId": "VM-0001",
+      "employeeId": "E002",
+      "name": "Suresh Kadam",
+      "role": "Billing Clerk"
+    },
+    {
+      "vendorId": "VM-0001",
+      "employeeId": "E003",
+      "name": "Anita Joshi",
+      "role": "Warehouse Clerk"
+    },
+    {
+      "vendorId": "VM-0001",
+      "employeeId": "E004",
+      "name": "Deepak Rao",
+      "role": "Finance"
+    },
+    {
+      "vendorId": "VM-0002",
+      "employeeId": "E001",
+      "name": "Kavita Shah",
+      "role": "Owner"
+    },
+    {
+      "vendorId": "VM-0002",
+      "employeeId": "E002",
+      "name": "Rohit Mehta",
+      "role": "Billing Clerk"
+    },
+    {
+      "vendorId": "VM-0002",
+      "employeeId": "E003",
+      "name": "Meena Desai",
+      "role": "Warehouse Clerk"
+    },
+    {
+      "vendorId": "VM-0003",
+      "employeeId": "E001",
+      "name": "Venkat Rao",
+      "role": "Owner"
+    },
+    {
+      "vendorId": "VM-0003",
+      "employeeId": "E002",
+      "name": "Priya Nair",
+      "role": "Billing Clerk"
+    },
+    {
+      "vendorId": "VM-0003",
+      "employeeId": "E003",
+      "name": "Anand Kumar",
+      "role": "Finance"
+    },
+    {
+      "vendorId": "ADMIN",
+      "employeeId": "B001",
+      "name": "Pratik Singh",
+      "role": "Backend (global access)"
+    },
+    {
+      "vendorId": "ADMIN",
+      "employeeId": "B002",
+      "name": "Ops Admin",
+      "role": "Backend (global access)"
+    }
+  ],
+  "masterScore": [
+    {
+      "name": "Ramesh Auto Components",
+      "vendorId": "VM-0001",
+      "onTimePaymentPct": 88,
+      "verifiedTxnsPct": 82,
+      "monthlyTradeVolumeLakh": 42,
+      "largestBuyerConcentrationPct": 35,
+      "weightedScore": 81.1,
+      "readinessBand": "Strong"
+    },
+    {
+      "name": "Shakti Textiles",
+      "vendorId": "VM-0002",
+      "onTimePaymentPct": 48,
+      "verifiedTxnsPct": 40,
+      "monthlyTradeVolumeLakh": 14,
+      "largestBuyerConcentrationPct": 65,
+      "weightedScore": 39.4,
+      "readinessBand": "Needs Attention"
+    },
+    {
+      "name": "Deccan Pipes & Fittings",
+      "vendorId": "VM-0003",
+      "onTimePaymentPct": 72,
+      "verifiedTxnsPct": 68,
+      "monthlyTradeVolumeLakh": 30,
+      "largestBuyerConcentrationPct": 42,
+      "weightedScore": 65.8,
+      "readinessBand": "Improving"
+    }
+  ]
+}

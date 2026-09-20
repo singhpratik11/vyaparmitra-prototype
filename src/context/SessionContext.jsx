@@ -1,5 +1,5 @@
 import React, { createContext, useCallback, useContext, useMemo, useState } from 'react';
-import { customers, users, suppliersByVendor, itemsByVendor } from '../data/database.js';
+import { customers, users, suppliersByVendor, itemsByVendor, buyersByVendor } from '../data/database.js';
 
 const ADMIN_VENDOR_ID = 'ADMIN';
 
@@ -56,6 +56,7 @@ export function SessionProvider({ children }) {
       customer,
       suppliers: suppliersByVendor[scopeVendorId] || [],
       items: itemsByVendor[scopeVendorId] || [],
+      buyers: buyersByVendor[scopeVendorId] || [],
       tenantUsers: users.filter((user) => user.vendorId === scopeVendorId),
       selectedCustomerId,
       selectCustomer: setSelectedCustomerId,
