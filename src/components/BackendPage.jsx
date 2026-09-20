@@ -74,6 +74,12 @@ export default function BackendPage({ onTriggerComingSoon }) {
                 </p>
               </div>
 
+              {customers.length === 0 && (
+                <p className="text-sm text-[#526174]">
+                  No customers loaded — the tenants list in the database is empty.
+                </p>
+              )}
+
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
                 {customers.map((customer) => (
                   <button
