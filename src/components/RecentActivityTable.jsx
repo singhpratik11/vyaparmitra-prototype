@@ -1,6 +1,26 @@
 import React, { useState } from 'react';
-import { FileText, PackageCheck, ArrowUpRight, ArrowDownLeft, Filter, ExternalLink, ShieldCheck, BadgeCheck } from 'lucide-react';
-import { useAppState } from '../context/AppStateContext.jsx';
+import { FileText, PackageCheck, ArrowUpRight, ArrowDownLeft, Filter, ExternalLink, ShieldCheck, BadgeCheck, IndianRupee } from 'lucide-react';
+import { useAppState, getDaysLate } from '../context/AppStateContext.jsx';
+import RecordPaymentModal from './RecordPaymentModal';
+
+const PAYMENT_STATUS_STYLES = {
+  Paid: 'bg-[#E8F7F3] text-[#123B78] border-[#10B8A5]/30',
+  'Partially Paid': 'bg-blue-50 text-[#1265A8] border-blue-200',
+  Unpaid: 'bg-slate-100 text-[#526174] border-slate-200',
+};
+
+// Bank-matched is the strong source, self-reported the weak one.
+const PAYMENT_SOURCE_TAGS = {
+  'Bank-matched (AA)': { label: 'Bank-matched', style: 'bg-[#E8F7F3] text-[#123B78]' },
+  'Buyer-confirmed': { label: 'Buyer-confirmed', style: 'bg-blue-50 text-[#1265A8]' },
+  'Self-reported': { label: 'Self-reported', style: 'bg-amber-50 text-amber-800' },
+};
+
+function formatTiming(record) {
+  const daysLate = getDaysLate(record);
+  if (daysLate === null) return null;
+  return daysLate <= 0 ? 'on time' : `${daysLate} ${daysLate === 1 ? 'day' : 'days'} late`;
+}
 
 // Simulated only — the prototype has no verification integrations.
 const VERIFICATION_SOURCES = ['GST e-invoice ref', 'Bank inflow matched', 'Buyer confirmed'];
@@ -23,8 +43,11 @@ function formatDate(isoDate) {
 }
 
 export default function RecentActivityTable({ onTriggerComingSoon }) {
-  const { records, verifyRecord } = useAppState();
+  const { records, verifyRecord, recordPayment } = useAppState();
   const [filter, setFilter] = useState('ALL');
+  const [paymentRecordId, setPaymentRecordId] = useState(null);
+
+  const paymentRecord = records.find((record) => record.id === paymentRecordId) || null;
 
   // Cycles through the mock sources as records get verified.
   const verifiedCount = records.filter((record) => record.status === 'Verified').length;
@@ -86,6 +109,7 @@ export default function RecentActivityTable({ onTriggerComingSoon }) {
               <th className="py-3 px-3">Party</th>
               <th className="py-3 px-3 text-right">Amount</th>
               <th className="py-3 px-3 text-center">Status</th>
+              <th className="py-3 px-3 text-center">Payment</th>
               <th className="py-3 px-3 text-right">Action</th>
             </tr>
           </thead>
@@ -146,6 +170,30 @@ export default function RecentActivityTable({ onTriggerComingSoon }) {
                   </span>
                 </td>
 
+                {/* Payment */}
+                <td className="py-3.5 px-3 text-center whitespace-nowrap">
+                  <span
+                    className={`inline-block px-2.5 py-0.5 rounded-full text-xs font-semibold border ${
+                      PAYMENT_STATUS_STYLES[row.paymentStatus] || PAYMENT_STATUS_STYLES.Unpaid
+                    }`}
+                  >
+                    {row.paymentStatus || 'Unpaid'}
+                  </span>
+
+                  {row.paymentSource && (
+                    <div className="mt-1 flex items-center justify-center gap-1.5">
+                      <span
+                        className={`inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-medium ${
+                          PAYMENT_SOURCE_TAGS[row.paymentSource].style
+                        }`}
+                      >
+                        {PAYMENT_SOURCE_TAGS[row.paymentSource].label}
+                      </span>
+                      <span className="text-[10px] text-[#526174]">{formatTiming(row)}</span>
+                    </div>
+                  )}
+                </td>
+
                 {/* Action */}
                 <td className="py-3.5 px-3 text-right whitespace-nowrap">
                   <div className="inline-flex items-center gap-3">
@@ -159,6 +207,18 @@ export default function RecentActivityTable({ onTriggerComingSoon }) {
                         <span>Verify</span>
                       </button>
                     )}
+
+                    <button
+                      type="button"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setPaymentRecordId(row.id);
+                      }}
+                      className="inline-flex items-center gap-1 text-xs font-semibold text-[#1265A8] hover:text-[#123B78] hover:underline"
+                    >
+                      <IndianRupee className="w-3.5 h-3.5" />
+                      <span>Record Payment</span>
+                    </button>
 
                     <button
                       type="button"
@@ -182,7 +242,7 @@ export default function RecentActivityTable({ onTriggerComingSoon }) {
       {/* Footer note */}
       <div className="mt-4 pt-3 border-t border-slate-100 flex flex-col sm:flex-row items-center justify-between text-xs text-[#526174]">
         <span>Showing {filteredActivities.length} mock ledger entries</span>
-        <span>Prototype — verification simulated</span>
+        <span>Prototype — verification &amp; payments simulated</span>
         <button
           onClick={onTriggerComingSoon}
           className="text-xs font-semibold text-[#1265A8] hover:text-[#123B78] mt-2 sm:mt-0"
@@ -190,6 +250,17 @@ export default function RecentActivityTable({ onTriggerComingSoon }) {
           Export Ledger (Coming Soon) →
         </button>
       </div>
+
+      {/* Simulated payment capture — no bank or Account Aggregator call is made */}
+      <RecordPaymentModal
+        isOpen={Boolean(paymentRecord)}
+        record={paymentRecord}
+        onClose={() => setPaymentRecordId(null)}
+        onSubmit={(payment) => {
+          recordPayment(paymentRecord.id, payment);
+          setPaymentRecordId(null);
+        }}
+      />
     </div>
   );
 }

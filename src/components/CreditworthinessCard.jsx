@@ -1,6 +1,6 @@
 import React from 'react';
 import { ShieldCheck, Info, TrendingUp, CheckCircle2, Clock } from 'lucide-react';
-import { useAppState } from '../context/AppStateContext.jsx';
+import { useAppState, getPaymentPerformance } from '../context/AppStateContext.jsx';
 
 // Prototype thresholds — readiness signals only, never a score we own.
 const VOLUME_TARGET = 500000;
@@ -45,16 +45,15 @@ export default function CreditworthinessCard() {
   const { records } = useAppState();
 
   const sales = records.filter((record) => record.type === 'Sale');
-  const settled = records.filter((record) => record.paidOnTime === true || record.paidOnTime === false);
+  // On-time % comes from corroborated payments only — self-reported ones are excluded.
+  const payment = getPaymentPerformance(records);
   const volume = sumAmounts(records);
   const salesValue = sumAmounts(sales);
 
   const verifiedShare = records.length
     ? records.filter((record) => record.status === 'Verified').length / records.length
     : null;
-  const onTimeShare = settled.length
-    ? settled.filter((record) => record.paidOnTime === true).length / settled.length
-    : null;
+  const onTimeShare = payment.onTimeShare;
 
   let concentration = null;
   if (salesValue > 0) {
@@ -140,7 +139,13 @@ export default function CreditworthinessCard() {
               <span>Settlements</span>
             </div>
             <p className="text-base font-bold text-[#123B78] mt-1">{formatShare(onTimeShare)}</p>
-            <p className="text-[10px] text-[#526174]">On-time history</p>
+            <p className="text-[10px] text-[#526174]">
+              {onTimeShare === null
+                ? 'Insufficient payment history'
+                : payment.selfReportedExcluded
+                  ? `${payment.selfReportedExcluded} self-reported excluded`
+                  : 'Corroborated payments only'}
+            </p>
           </div>
 
           <div className="p-3.5 rounded-xl bg-[#F6F9FB] border border-slate-200/70 min-w-[125px]">

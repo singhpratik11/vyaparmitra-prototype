@@ -2,6 +2,75 @@ import React, { createContext, useCallback, useContext, useEffect, useMemo, useS
 
 const STORAGE_KEY = 'vyaparmitra:appState:v1';
 
+/** Simulated only — no bank or Account Aggregator call is ever made. */
+export const PAYMENT_SOURCES = ['Bank-matched (AA)', 'Buyer-confirmed', 'Self-reported'];
+
+/** A payment only counts toward on-time % when someone other than the MSME confirms it. */
+const CORROBORATED_SOURCES = ['Bank-matched (AA)', 'Buyer-confirmed'];
+
+const DAY_MS = 24 * 60 * 60 * 1000;
+
+function parseIsoDate(isoDate) {
+  const parts = /^(\d{4})-(\d{2})-(\d{2})$/.exec(isoDate || '');
+  if (!parts) return null;
+  return Date.UTC(Number(parts[1]), Number(parts[2]) - 1, Number(parts[3]));
+}
+
+function toIsoDate(ms) {
+  return new Date(ms).toISOString().slice(0, 10);
+}
+
+/** Today in the viewer's own timezone, not UTC. */
+export function todayIsoDate() {
+  const now = new Date();
+  return toIsoDate(now.getTime() - now.getTimezoneOffset() * 60000);
+}
+
+/** Derived, never stored: storing it would go stale if the date or terms change. */
+export function getDueDate(record) {
+  const issued = parseIsoDate(record?.date);
+  if (issued === null) return null;
+  return toIsoDate(issued + (Number(record?.paymentTermsDays) || 0) * DAY_MS);
+}
+
+/** Derived: paidDate − dueDate in days. Negative = early, 0 = on time, null = unknown. */
+export function getDaysLate(record) {
+  const due = parseIsoDate(getDueDate(record));
+  const paid = parseIsoDate(record?.paidDate);
+  if (due === null || paid === null) return null;
+  return Math.round((paid - due) / DAY_MS);
+}
+
+export function isCorroborated(record) {
+  return CORROBORATED_SOURCES.includes(record?.paymentSource);
+}
+
+/** An invoice has matured once its due date has passed. */
+export function hasMatured(record, today = todayIsoDate()) {
+  const due = getDueDate(record);
+  return Boolean(due) && due <= today;
+}
+
+/**
+ * On-time % = corroborated payments made on/before the due date, over corroborated
+ * payments on matured invoices. Self-reported payments are shown in the ledger but
+ * deliberately excluded here, so they cannot inflate readiness.
+ */
+export function getPaymentPerformance(records, today = todayIsoDate()) {
+  const corroborated = records.filter((record) => isCorroborated(record) && record.paidDate);
+  const considered = corroborated.filter((record) => hasMatured(record, today));
+  const onTime = considered.filter((record) => (getDaysLate(record) ?? 1) <= 0);
+
+  return {
+    onTimeShare: considered.length ? onTime.length / considered.length : null,
+    consideredCount: considered.length,
+    onTimeCount: onTime.length,
+    selfReportedExcluded: records.filter((record) => record.paymentSource === 'Self-reported').length,
+    receivableCount: considered.filter((record) => record.paymentDirection === 'Receivable').length,
+    payableCount: considered.filter((record) => record.paymentDirection === 'Payable').length,
+  };
+}
+
 /**
  * @typedef {Object} TradeRecord
  * @property {string} id
@@ -12,7 +81,12 @@ const STORAGE_KEY = 'vyaparmitra:appState:v1';
  * @property {number} paymentTermsDays
  * @property {'Unverified'|'Verified'} status
  * @property {string|null} verificationSource
- * @property {boolean|null} paidOnTime   null until the payment outcome is known.
+ * @property {boolean|null} paidOnTime   Derived from a CORROBORATED payment only; null otherwise.
+ * @property {'Unpaid'|'Partially Paid'|'Paid'} paymentStatus
+ * @property {number} amountPaid
+ * @property {string|null} paidDate      ISO date the money actually moved.
+ * @property {string|null} paymentSource One of PAYMENT_SOURCES.
+ * @property {'Receivable'|'Payable'|null} paymentDirection  Sale = buyer pays us, Purchase = we pay.
  */
 
 /**
@@ -37,7 +111,7 @@ function readPersistedState() {
     if (!raw) return INITIAL_STATE;
     const parsed = JSON.parse(raw);
     return {
-      records: Array.isArray(parsed?.records) ? parsed.records : [],
+      records: Array.isArray(parsed?.records) ? parsed.records.map(withPaymentDefaults) : [],
       profileShared: Boolean(parsed?.profileShared),
       lenderDecision: parsed?.lenderDecision ?? null,
     };
@@ -45,6 +119,18 @@ function readPersistedState() {
     // Private window, blocked storage, or corrupt payload: start clean.
     return INITIAL_STATE;
   }
+}
+
+/** Fills the payment fields so records saved before this layer existed still work. */
+function withPaymentDefaults(record) {
+  return {
+    ...record,
+    paymentStatus: record?.paymentStatus ?? 'Unpaid',
+    amountPaid: Number(record?.amountPaid) || 0,
+    paidDate: record?.paidDate ?? null,
+    paymentSource: record?.paymentSource ?? null,
+    paymentDirection: record?.paymentDirection ?? (record?.type === 'Purchase' ? 'Payable' : 'Receivable'),
+  };
 }
 
 function createRecordId() {
@@ -64,7 +150,7 @@ export function AppStateProvider({ children }) {
 
   /** Adds a record, filling in id and the unverified defaults. */
   const addRecord = useCallback((record) => {
-    const newRecord = {
+    const newRecord = withPaymentDefaults({
       id: record?.id || createRecordId(),
       type: record?.type ?? 'Sale',
       party: record?.party ?? '',
@@ -74,7 +160,7 @@ export function AppStateProvider({ children }) {
       status: record?.status ?? 'Unverified',
       verificationSource: record?.verificationSource ?? null,
       paidOnTime: record?.paidOnTime ?? null,
-    };
+    });
     setState((prev) => ({ ...prev, records: [newRecord, ...prev.records] }));
     return newRecord;
   }, []);
@@ -95,6 +181,36 @@ export function AppStateProvider({ children }) {
     setState((prev) => ({ ...prev, profileShared: Boolean(profileShared) }));
   }, []);
 
+  /**
+   * Simulated payment capture. paymentStatus follows amountPaid against the invoice
+   * total, and paidOnTime is refreshed as a derived convenience for corroborated
+   * payments only — a self-reported payment leaves it null, so it stays out of every
+   * metric that reads it.
+   */
+  const recordPayment = useCallback((id, { amountPaid, paidDate, paymentSource }) => {
+    setState((prev) => ({
+      ...prev,
+      records: prev.records.map((record) => {
+        if (record.id !== id) return record;
+
+        const paid = Number(amountPaid) || 0;
+        const total = Number(record.amount) || 0;
+        const next = {
+          ...record,
+          amountPaid: paid,
+          paidDate: paid > 0 ? paidDate || null : null,
+          paymentSource: paid > 0 ? paymentSource ?? null : null,
+          paymentStatus: paid <= 0 ? 'Unpaid' : paid >= total ? 'Paid' : 'Partially Paid',
+          paymentDirection: record.type === 'Purchase' ? 'Payable' : 'Receivable',
+        };
+
+        const daysLate = getDaysLate(next);
+        next.paidOnTime = isCorroborated(next) && daysLate !== null ? daysLate <= 0 : null;
+        return next;
+      }),
+    }));
+  }, []);
+
   /** Records the lending partner's decision: 'Approve', 'Make offer' or 'Decline'. */
   const setLenderDecision = useCallback((lenderDecision) => {
     setState((prev) => ({ ...prev, lenderDecision: lenderDecision ?? null }));
@@ -107,6 +223,7 @@ export function AppStateProvider({ children }) {
       lenderDecision: state.lenderDecision,
       addRecord,
       verifyRecord,
+      recordPayment,
       setProfileShared,
       setLenderDecision,
     }),
@@ -116,6 +233,7 @@ export function AppStateProvider({ children }) {
       state.lenderDecision,
       addRecord,
       verifyRecord,
+      recordPayment,
       setProfileShared,
       setLenderDecision,
     ]
