@@ -1,8 +1,8 @@
 import React, { useState } from 'react';
-import { Building2, Globe2, Lock } from 'lucide-react';
+import { ArrowLeft, Building2, Globe2, Lock } from 'lucide-react';
 import CreditworthinessCard from './CreditworthinessCard';
 import RecentActivityTable from './RecentActivityTable';
-import { customers, suppliersByVendor, itemsByVendor, masterScore } from '../data/database.js';
+import { customers, suppliersByVendor, itemsByVendor, buyersByVendor, masterScore } from '../data/database.js';
 import { useSession } from '../context/SessionContext.jsx';
 
 const BAND_STYLES = {
@@ -20,9 +20,24 @@ function formatPct(value) {
 export default function BackendPage({ onTriggerComingSoon }) {
   const { selectedCustomerId, selectCustomer, session } = useSession();
   const [mode, setMode] = useState('customer');
+  const [query, setQuery] = useState('');
 
   const suppliers = suppliersByVendor[selectedCustomerId] || [];
   const items = itemsByVendor[selectedCustomerId] || [];
+  const buyers = buyersByVendor[selectedCustomerId] || [];
+
+  const selectedCustomer = customers.find((item) => item.vendorId === selectedCustomerId) || null;
+  const isDrilledIn = mode === 'customer' && Boolean(selectedCustomer);
+
+  // Matches on name, vendor id or GSTIN, so it scales past a handful of plants.
+  const needle = query.trim().toLowerCase();
+  const visibleCustomers = needle
+    ? customers.filter((customer) =>
+        [customer.name, customer.vendorId, customer.gstin].some((field) =>
+          String(field || '').toLowerCase().includes(needle)
+        )
+      )
+    : customers;
 
   return (
     <div className="space-y-6 md:space-y-8 max-w-7xl mx-auto">
@@ -30,14 +45,28 @@ export default function BackendPage({ onTriggerComingSoon }) {
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 pb-2 border-b border-slate-200/60">
         <div>
           <div className="flex items-center gap-2 mb-1">
+            {isDrilledIn && (
+              <>
+                <button
+                  onClick={() => selectCustomer(null)}
+                  className="inline-flex items-center gap-1.5 text-xs font-semibold text-[#526174] hover:text-[#123B78]"
+                >
+                  <ArrowLeft className="w-3.5 h-3.5" />
+                  <span>All Plants</span>
+                </button>
+                <span className="text-slate-300">•</span>
+              </>
+            )}
             <span className="text-xs font-semibold text-[#1265A8]">Backend Console</span>
           </div>
 
           <h1 className="text-2xl md:text-3xl font-bold text-[#172033] tracking-tight">
-            All Plants
+            {isDrilledIn ? selectedCustomer.name : 'All Plants'}
           </h1>
           <p className="text-xs md:text-sm text-[#526174] mt-0.5">
-            Signed in as {session?.name} · global access across every customer on the platform.
+            {isDrilledIn
+              ? `${selectedCustomer.vendorId} · GSTIN ${selectedCustomer.gstin} · ${selectedCustomer.plan} plan`
+              : `Signed in as ${session?.name} · global access across every customer on the platform.`}
           </p>
         </div>
 
@@ -62,7 +91,7 @@ export default function BackendPage({ onTriggerComingSoon }) {
         </div>
       </div>
 
-      {mode === 'customer' && (
+      {mode === 'customer' && !isDrilledIn && (
         <>
           {/* Customer picker */}
           <section aria-label="Customer Picker">
@@ -70,7 +99,23 @@ export default function BackendPage({ onTriggerComingSoon }) {
               <div className="pb-5 border-b border-slate-100 mb-6">
                 <h3 className="text-xl font-bold text-[#172033] tracking-tight">Customers</h3>
                 <p className="text-xs md:text-sm text-[#526174] mt-0.5">
-                  Pick a plant to see its suppliers, items, ledger and readiness.
+                  Pick a plant to see its suppliers, items, buyers, ledger and readiness.
+                </p>
+              </div>
+
+              <div className="mb-6">
+                <label className="block text-xs font-bold text-[#172033] uppercase tracking-wider mb-2">
+                  Find a customer
+                </label>
+                <input
+                  type="text"
+                  value={query}
+                  onChange={(e) => setQuery(e.target.value)}
+                  placeholder="Name, vendor ID or GSTIN"
+                  className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 bg-slate-50/70 text-[#172033] text-sm"
+                />
+                <p className="text-[11px] text-[#526174] mt-1.5">
+                  Showing {visibleCustomers.length} of {customers.length} customers
                 </p>
               </div>
 
@@ -80,17 +125,19 @@ export default function BackendPage({ onTriggerComingSoon }) {
                 </p>
               )}
 
+              {customers.length > 0 && visibleCustomers.length === 0 && (
+                <p className="text-sm text-[#526174]">
+                  No customers match “{query}”.
+                </p>
+              )}
+
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-                {customers.map((customer) => (
+                {visibleCustomers.map((customer) => (
                   <button
                     key={customer.vendorId}
                     type="button"
                     onClick={() => selectCustomer(customer.vendorId)}
-                    className={`p-4 rounded-xl border text-left transition-colors ${
-                      selectedCustomerId === customer.vendorId
-                        ? 'bg-[#E8F7F3] border-[#10B8A5]/30'
-                        : 'bg-[#F6F9FB] border-slate-200/70 hover:border-slate-300'
-                    }`}
+                    className="p-4 rounded-xl border text-left transition-colors bg-[#F6F9FB] border-slate-200/70 hover:border-slate-300"
                   >
                     <div className="flex items-center justify-between">
                       <span className="text-xs font-semibold text-[#526174]">{customer.vendorId}</span>
@@ -104,11 +151,11 @@ export default function BackendPage({ onTriggerComingSoon }) {
               </div>
             </div>
           </section>
+        </>
+      )}
 
-          {!selectedCustomerId ? (
-            <p className="text-sm text-[#526174]">Select a customer above to load their data.</p>
-          ) : (
-            <>
+      {isDrilledIn && (
+        <>
               <section aria-label="Customer Readiness">
                 <CreditworthinessCard />
               </section>
@@ -118,7 +165,7 @@ export default function BackendPage({ onTriggerComingSoon }) {
                   <div className="pb-5 border-b border-slate-100">
                     <h3 className="text-xl font-bold text-[#172033] tracking-tight">Masters</h3>
                     <p className="text-xs md:text-sm text-[#526174] mt-0.5">
-                      Suppliers and items on record for this plant.
+                      Suppliers, buyers and items on record for this plant.
                     </p>
                   </div>
 
@@ -150,6 +197,42 @@ export default function BackendPage({ onTriggerComingSoon }) {
                               </td>
                               <td className="py-3.5 px-3 text-right font-mono text-xs md:text-sm text-[#172033]">
                                 {supplier.paymentTermsDays}
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  </div>
+
+                  <div className="pt-4 mt-4 border-t border-slate-100">
+                    <h4 className="text-xs font-bold uppercase tracking-wider text-[#526174] mb-4">
+                      Buyers
+                    </h4>
+                    <div className="overflow-x-auto">
+                      <table className="w-full text-left text-sm border-collapse">
+                        <thead>
+                          <tr className="border-b border-slate-100 text-[11px] font-bold text-[#526174] uppercase tracking-wider">
+                            <th className="py-3 px-3">Buyer</th>
+                            <th className="py-3 px-3">GSTIN</th>
+                            <th className="py-3 px-3">City</th>
+                            <th className="py-3 px-3 text-right">Terms (Days)</th>
+                          </tr>
+                        </thead>
+                        <tbody className="divide-y divide-slate-100">
+                          {buyers.map((buyer) => (
+                            <tr key={buyer.buyerId}>
+                              <td className="py-3.5 px-3 font-semibold text-[#172033] text-xs md:text-sm">
+                                {buyer.name}
+                              </td>
+                              <td className="py-3.5 px-3 font-mono text-xs md:text-sm text-[#526174]">
+                                {buyer.gstin}
+                              </td>
+                              <td className="py-3.5 px-3 text-xs md:text-sm text-[#526174]">
+                                {buyer.city}
+                              </td>
+                              <td className="py-3.5 px-3 text-right font-mono text-xs md:text-sm text-[#172033]">
+                                {buyer.paymentTermsDays}
                               </td>
                             </tr>
                           ))}
@@ -198,11 +281,9 @@ export default function BackendPage({ onTriggerComingSoon }) {
                 </div>
               </section>
 
-              <section aria-label="Customer Ledger">
-                <RecentActivityTable onTriggerComingSoon={onTriggerComingSoon} />
-              </section>
-            </>
-          )}
+          <section aria-label="Customer Ledger">
+            <RecentActivityTable onTriggerComingSoon={onTriggerComingSoon} />
+          </section>
         </>
       )}
 

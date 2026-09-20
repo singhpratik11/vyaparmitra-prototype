@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import Sidebar from './components/Sidebar';
 import Header from './components/Header';
 import HomePage from './components/HomePage';
@@ -43,6 +43,12 @@ export default function App() {
   ];
 
   const allowedViews = ROLE_VIEWS[role] || [];
+
+  // The backend console is wide, so it opens with the sidebar collapsed. Expanding
+  // it afterwards sticks — this only runs when someone signs in.
+  useEffect(() => {
+    if (session) setIsSidebarCollapsed(isAdmin);
+  }, [session, isAdmin]);
   // Any view outside the role falls back to that role's first allowed view.
   const activeView = allowedViews.includes(currentView) ? currentView : allowedViews[0];
 
@@ -96,7 +102,6 @@ export default function App() {
             role={role}
             onNavigate={handleNavigate}
             isCollapsed={isSidebarCollapsed}
-            onToggleCollapse={() => setIsSidebarCollapsed(!isSidebarCollapsed)}
           />
         </div>
 
