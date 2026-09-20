@@ -27,6 +27,8 @@ export default function Header({
         return 'Your simplified business hub.';
       case 'dashboard':
         return 'Detailed financial ledger & metrics.';
+      case 'worklist':
+        return 'Unpaid records by due date.';
       case 'create-invoice':
         return 'Sales & compliant billing entry.';
       case 'create-grn':

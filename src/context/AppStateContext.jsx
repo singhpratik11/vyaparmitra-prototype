@@ -1,4 +1,5 @@
 import React, { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react';
+import { activeSuppliers } from '../data/database.js';
 
 const STORAGE_KEY = 'vyaparmitra:appState:v1';
 
@@ -26,11 +27,51 @@ export function todayIsoDate() {
   return toIsoDate(now.getTime() - now.getTimezoneOffset() * 60000);
 }
 
+/**
+ * A GRN carries no payment terms of its own, so fall back to the terms the supplier
+ * master holds for that party. Anything still unknown is treated as due on the date.
+ */
+export function getPaymentTermsDays(record) {
+  const own = Number(record?.paymentTermsDays);
+  if (own) return own;
+  if (record?.type === 'Purchase') {
+    const supplier = activeSuppliers.find((item) => item.name === record?.party);
+    if (supplier) return Number(supplier.paymentTermsDays) || 0;
+  }
+  return 0;
+}
+
 /** Derived, never stored: storing it would go stale if the date or terms change. */
 export function getDueDate(record) {
   const issued = parseIsoDate(record?.date);
   if (issued === null) return null;
-  return toIsoDate(issued + (Number(record?.paymentTermsDays) || 0) * DAY_MS);
+  return toIsoDate(issued + getPaymentTermsDays(record) * DAY_MS);
+}
+
+/** Anything not fully paid still needs chasing, including partially paid invoices. */
+export function isUnpaid(record) {
+  return record?.paymentStatus !== 'Paid';
+}
+
+/** Days from today to the due date: negative = overdue, 0 = due today. */
+export function getDaysUntilDue(record, today = todayIsoDate()) {
+  const due = parseIsoDate(getDueDate(record));
+  const now = parseIsoDate(today);
+  if (due === null || now === null) return null;
+  return Math.round((due - now) / DAY_MS);
+}
+
+/**
+ * Which reminder bucket a record sits in, by due date against today alone — nothing
+ * an operator does moves a record between buckets except settling it.
+ */
+export function getDueBucket(record, today = todayIsoDate()) {
+  const days = getDaysUntilDue(record, today);
+  if (days === null) return null;
+  if (days < 0) return 'Overdue';
+  if (days <= 7) return 'Due this week';
+  if (days <= 14) return 'Due next week';
+  return null;
 }
 
 /** Derived: paidDate − dueDate in days. Negative = early, 0 = on time, null = unknown. */

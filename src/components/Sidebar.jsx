@@ -8,19 +8,31 @@ import {
   CheckCircle2, 
   PanelLeftClose, 
   PanelLeftOpen,
-  ChevronRight
+  ChevronRight,
+  CalendarClock
 } from 'lucide-react';
 import Logo from './Logo';
 import { activeCustomer } from '../data/database.js';
+import { useAppState, isUnpaid, getDueBucket } from '../context/AppStateContext.jsx';
 
 export default function Sidebar({ 
   currentView, 
   allowedViews, 
+  role, 
   onNavigate, 
   onCloseMobile, 
   isCollapsed = false, 
   onToggleCollapse 
 }) {
+  const { records } = useAppState();
+
+  // Only what this role actually works: warehouse clerks see payables alone.
+  const overdueCount = records.filter((record) => {
+    if (!isUnpaid(record) || getDueBucket(record) !== 'Overdue') return false;
+    if (role === 'Warehouse Clerk') return record.type === 'Purchase';
+    return true;
+  }).length;
+
   const navItems = [
     {
       id: 'home',
@@ -33,6 +45,13 @@ export default function Sidebar({
       label: 'Business Dashboard',
       icon: LayoutDashboard,
       description: 'Financial Metrics & Ledger',
+    },
+    {
+      id: 'worklist',
+      label: 'Payment Worklist',
+      icon: CalendarClock,
+      description: 'Unpaid Records by Due Date',
+      badge: overdueCount ? `${overdueCount} overdue` : null,
     },
     {
       id: 'create-invoice',
@@ -142,7 +161,13 @@ export default function Sidebar({
                     )}
                   </div>
 
-                  {!isCollapsed && isActive && (
+                  {!isCollapsed && item.badge && (
+                    <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-medium bg-amber-50 text-amber-800 flex-shrink-0">
+                      {item.badge}
+                    </span>
+                  )}
+
+                  {!isCollapsed && isActive && !item.badge && (
                     <span className="w-1.5 h-4 rounded-full bg-[#10B8A5] flex-shrink-0" />
                   )}
                 </button>

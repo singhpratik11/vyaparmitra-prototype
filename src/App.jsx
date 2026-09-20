@@ -5,6 +5,7 @@ import HomePage from './components/HomePage';
 import DashboardPage from './components/DashboardPage';
 import InvoicePage from './components/InvoicePage';
 import GRNPage from './components/GRNPage';
+import WorklistPage from './components/WorklistPage';
 import LenderProfilePage from './components/LenderProfilePage';
 import ComingSoonModal from './components/ComingSoonModal';
 import { X } from 'lucide-react';
@@ -13,10 +14,10 @@ import { activeUsers } from './data/database.js';
 // Simulated segregation of duties — no real auth, no server check.
 // Role names match the Role column of the workbook's Users sheet.
 const ROLE_VIEWS = {
-  Owner: ['home', 'dashboard', 'create-invoice', 'create-grn'],
+  Owner: ['home', 'dashboard', 'worklist', 'create-invoice', 'create-grn'],
   'Billing Clerk': ['create-invoice'],
-  'Warehouse Clerk': ['create-grn'],
-  Finance: ['home', 'dashboard', 'create-invoice', 'create-grn'],
+  'Warehouse Clerk': ['create-grn', 'worklist'],
+  Finance: ['home', 'dashboard', 'worklist', 'create-invoice', 'create-grn'],
   Lender: ['profile'],
 };
 
@@ -85,6 +86,7 @@ export default function App() {
           <Sidebar
             currentView={activeView}
             allowedViews={allowedViews}
+            role={actor.role}
             onNavigate={handleNavigate}
             isCollapsed={isSidebarCollapsed}
             onToggleCollapse={() => setIsSidebarCollapsed(!isSidebarCollapsed)}
@@ -111,6 +113,7 @@ export default function App() {
               <Sidebar
                 currentView={activeView}
                 allowedViews={allowedViews}
+                role={actor.role}
                 onNavigate={handleNavigate}
                 onCloseMobile={() => setIsMobileNavOpen(false)}
                 isCollapsed={false}
@@ -146,6 +149,11 @@ export default function App() {
                 onNavigate={handleNavigate}
                 onTriggerComingSoon={handleTriggerComingSoon}
               />
+            )}
+
+            {/* View 6: PAYMENT WORKLIST (unpaid records bucketed by due date) */}
+            {activeView === 'worklist' && (
+              <WorklistPage role={actor.role} onNavigate={handleNavigate} />
             )}
 
             {/* View 3: CREATE INVOICE (Visual Mock Form) */}
