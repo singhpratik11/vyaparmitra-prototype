@@ -9,10 +9,11 @@ import {
   PanelLeftClose, 
   PanelLeftOpen,
   ChevronRight,
-  CalendarClock
+  CalendarClock,
+  Database
 } from 'lucide-react';
 import Logo from './Logo';
-import { activeCustomer } from '../data/database.js';
+import { useSession } from '../context/SessionContext.jsx';
 import { useAppState, isUnpaid, getDueBucket } from '../context/AppStateContext.jsx';
 
 export default function Sidebar({ 
@@ -25,6 +26,9 @@ export default function Sidebar({
   onToggleCollapse 
 }) {
   const { records } = useAppState();
+  const { customer } = useSession();
+  const businessName = customer ? customer.name : 'Backend (all plants)';
+  const businessGstin = customer ? customer.gstin : '—';
 
   // Only what this role actually works: warehouse clerks see payables alone.
   const overdueCount = records.filter((record) => {
@@ -45,6 +49,12 @@ export default function Sidebar({
       label: 'Business Dashboard',
       icon: LayoutDashboard,
       description: 'Financial Metrics & Ledger',
+    },
+    {
+      id: 'backend',
+      label: 'Backend Console',
+      icon: Database,
+      description: 'All Plants & Global Data',
     },
     {
       id: 'worklist',
@@ -192,13 +202,13 @@ export default function Sidebar({
         {isCollapsed ? (
           <div 
             className="relative group p-2 rounded-xl bg-white border border-slate-200/70 shadow-2xs cursor-pointer flex items-center justify-center"
-            title={`${activeCustomer.name} - GSTIN: ${activeCustomer.gstin}`}
+            title={`${businessName} - GSTIN: ${businessGstin}`}
           >
             <Building2 className="w-5 h-5 text-[#1265A8]" />
             {/* Tooltip */}
             <div className="hidden md:group-hover:block absolute left-full bottom-0 ml-3 p-3 bg-[#172033] text-white rounded-xl shadow-lg whitespace-nowrap z-50 pointer-events-none">
-              <p className="text-xs font-bold">{activeCustomer.name}</p>
-              <p className="text-[11px] font-mono text-slate-300">GSTIN: {activeCustomer.gstin}</p>
+              <p className="text-xs font-bold">{businessName}</p>
+              <p className="text-[11px] font-mono text-slate-300">GSTIN: {businessGstin}</p>
               <p className="text-[10px] text-[#10B8A5] mt-1 font-semibold">● MSME Registered</p>
             </div>
           </div>
@@ -211,12 +221,12 @@ export default function Sidebar({
               <div className="min-w-0 flex-1">
                 <div className="flex items-center gap-1.5">
                   <span className="text-xs font-bold text-[#172033] truncate">
-                    {activeCustomer.name}
+                    {businessName}
                   </span>
                   <CheckCircle2 className="w-3.5 h-3.5 text-[#10B8A5] flex-shrink-0" />
                 </div>
                 <p className="text-[11px] font-mono text-[#526174] truncate mt-0.5">
-                  GSTIN: {activeCustomer.gstin}
+                  GSTIN: {businessGstin}
                 </p>
                 <div className="mt-1.5 flex items-center gap-1.5">
                   <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-medium bg-slate-100 text-[#526174]">

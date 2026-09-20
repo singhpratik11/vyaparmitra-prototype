@@ -8,7 +8,7 @@ import {
   Users 
 } from 'lucide-react';
 import Logo from './Logo';
-import { activeCustomer } from '../data/database.js';
+import { useSession } from '../context/SessionContext.jsx';
 
 export default function Header({ 
   onOpenMobileNav, 
@@ -17,8 +17,10 @@ export default function Header({
   currentView,
   actorId,
   actors = [],
-  onActorChange 
+  onActorChange,
+  onSignOut 
 }) {
+  const { customer, isAdmin, session } = useSession();
   const currentDateStr = "19 Sep 2026";
 
   const getSubtext = () => {
@@ -74,7 +76,7 @@ export default function Header({
 
         <div>
           <h1 className="text-lg md:text-xl font-bold text-[#172033] tracking-tight">
-            Good morning, <span className="text-[#123B78]">{activeCustomer.name}</span>
+            Good morning, <span className="text-[#123B78]">{!isAdmin && customer ? customer.name : session?.name}</span>
           </h1>
           <p className="text-xs text-[#526174] font-medium">
             {getSubtext()}
@@ -89,15 +91,15 @@ export default function Header({
           <span>{currentDateStr}</span>
         </div>
 
-        {/* Simulated sign-in — segregation of duties only, no real auth */}
-        {onActorChange && (
+        {/* Demo helper only — it changes the view, never who is signed in */}
+        {onActorChange && !isAdmin && (
           <div className="hidden sm:flex items-center gap-1.5 px-3 py-1.5 bg-[#F6F9FB] rounded-lg border border-slate-200/70 text-xs font-medium text-[#526174]">
             <Users className="w-3.5 h-3.5 text-[#1265A8]" />
             <select
               value={actorId}
               onChange={(e) => onActorChange(e.target.value)}
-              aria-label="Simulated role"
-              title="Simulated sign-in — no real authentication"
+              aria-label="View as (demo)"
+              title="View as (demo) — does not change who is signed in"
               className="bg-transparent text-xs font-medium text-[#526174] focus:outline-hidden"
             >
               {actors.map((option) => (
@@ -107,6 +109,16 @@ export default function Header({
               ))}
             </select>
           </div>
+        )}
+
+        {onSignOut && (
+          <button
+            type="button"
+            onClick={onSignOut}
+            className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-[#F6F9FB] rounded-lg border border-slate-200/70 text-xs font-medium text-[#526174] hover:text-[#123B78] transition-colors"
+          >
+            <span>Sign out</span>
+          </button>
         )}
 
         {/* Prototype Indicator Badge */}

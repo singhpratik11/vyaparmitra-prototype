@@ -2,7 +2,7 @@ import React from 'react';
 import { BadgeCheck, ShieldCheck, Clock, CheckCircle2, Lock } from 'lucide-react';
 import CreditworthinessCard from './CreditworthinessCard';
 import { useAppState } from '../context/AppStateContext.jsx';
-import { activeCustomer } from '../data/database.js';
+import { useSession } from '../context/SessionContext.jsx';
 
 const DECISIONS = ['Approve', 'Make offer', 'Decline'];
 
@@ -24,6 +24,7 @@ function formatDate(isoDate) {
 
 export default function LenderProfilePage() {
   const { records, profileShared, lenderDecision, setLenderDecision } = useAppState();
+  const { customer } = useSession();
 
   if (!profileShared) {
     return (
@@ -47,7 +48,7 @@ export default function LenderProfilePage() {
           </div>
 
           <h1 className="text-2xl md:text-3xl font-bold text-[#172033] tracking-tight">
-            {activeCustomer.name}
+            {customer?.name}
           </h1>
           <p className="text-xs md:text-sm text-[#526174] mt-0.5">
             Shared with your consent. Read-only — you present readiness, the partner decides.

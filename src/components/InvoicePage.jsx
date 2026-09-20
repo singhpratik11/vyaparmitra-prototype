@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { ArrowLeft, FilePlus2, Sparkles, AlertCircle, Info, Lock, CheckCircle2 } from 'lucide-react';
 import { useAppState } from '../context/AppStateContext.jsx';
-import { activeItems } from '../data/database.js';
+import { useSession } from '../context/SessionContext.jsx';
 
 /** 0.28 -> "28% (14% CGST + 14% SGST)", the split the form already displayed. */
 function formatGst(gstRate) {
@@ -12,13 +12,14 @@ function formatGst(gstRate) {
 
 export default function InvoicePage({ onBackToDashboard, onTriggerComingSoon }) {
   const { addRecord } = useAppState();
+  const { items: activeItems } = useSession();
 
   const [buyer, setBuyer] = useState('Sharma Enterprises Pvt Ltd');
   const [invoiceDate, setInvoiceDate] = useState('2026-09-18');
   const [paymentTermsDays, setPaymentTermsDays] = useState('30');
-  const [itemCode, setItemCode] = useState(activeItems[0].code);
+  const [itemCode, setItemCode] = useState(activeItems[0]?.code || '');
   const [quantity, setQuantity] = useState('250');
-  const [rate, setRate] = useState(String(activeItems[0].unitPrice));
+  const [rate, setRate] = useState(String(activeItems[0]?.unitPrice ?? ''));
   const [savedMessage, setSavedMessage] = useState('');
 
   const selectedItem = activeItems.find((item) => item.code === itemCode) || null;

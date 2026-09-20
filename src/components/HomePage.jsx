@@ -12,9 +12,11 @@ import {
   ArrowUpRight
 } from 'lucide-react';
 import BusinessFlowVisual from './BusinessFlowVisual';
-import { activeCustomer } from '../data/database.js';
+import { useSession } from '../context/SessionContext.jsx';
 
 export default function HomePage({ onNavigate, onTriggerComingSoon }) {
+  const { customer } = useSession();
+
   return (
     <div className="space-y-8 max-w-6xl mx-auto">
       {/* 1. Welcoming Hero Banner (Calm, Warm, Non-intimidating) */}
@@ -30,7 +32,7 @@ export default function HomePage({ onNavigate, onTriggerComingSoon }) {
             </div>
 
             <h1 className="text-2xl md:text-3xl lg:text-4xl font-extrabold text-[#172033] tracking-tight">
-              Namaste, <span className="text-[#123B78]">{activeCustomer.name}</span>
+              Namaste, <span className="text-[#123B78]">{customer?.name}</span>
             </h1>
 
             <p className="text-sm md:text-base text-[#526174] leading-relaxed">

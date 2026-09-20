@@ -8,8 +8,10 @@ import GRNPage from './components/GRNPage';
 import WorklistPage from './components/WorklistPage';
 import LenderProfilePage from './components/LenderProfilePage';
 import ComingSoonModal from './components/ComingSoonModal';
+import LoginPage from './components/LoginPage';
+import BackendPage from './components/BackendPage';
 import { X } from 'lucide-react';
-import { activeUsers } from './data/database.js';
+import { useSession } from './context/SessionContext.jsx';
 
 // Simulated segregation of duties — no real auth, no server check.
 // Role names match the Role column of the workbook's Users sheet.
@@ -19,27 +21,28 @@ const ROLE_VIEWS = {
   'Warehouse Clerk': ['create-grn', 'worklist'],
   Finance: ['home', 'dashboard', 'worklist', 'create-invoice', 'create-grn'],
   Lender: ['profile'],
+  'Backend (global access)': ['backend'],
 };
 
-// This plant's employees, plus the external lending partner (not a platform user).
-const ACTORS = [
-  ...activeUsers.map((user) => ({
-    id: user.employeeId,
-    label: `${user.name} · ${user.role}`,
-    role: user.role,
-  })),
-  { id: 'LENDER', label: 'Lending partner · Lender', role: 'Lender' },
-];
-
 export default function App() {
-  const [actorId, setActorId] = useState(ACTORS[0].id);
+  const { session, role, tenantUsers, isAdmin, signOut, setViewAsRole } = useSession();
+  const [actorId, setActorId] = useState(null);
   const [currentView, setCurrentView] = useState('home');
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
   const [isComingSoonOpen, setIsComingSoonOpen] = useState(false);
   const [isMobileNavOpen, setIsMobileNavOpen] = useState(false);
 
-  const actor = ACTORS.find((item) => item.id === actorId) || ACTORS[0];
-  const allowedViews = ROLE_VIEWS[actor.role] || [];
+  // This plant's employees, plus the external lending partner (not a platform user).
+  const actors = [
+    ...tenantUsers.map((user) => ({
+      id: user.employeeId,
+      label: `${user.name} · ${user.role}`,
+      role: user.role,
+    })),
+    { id: 'LENDER', label: 'Lending partner · Lender', role: 'Lender' },
+  ];
+
+  const allowedViews = ROLE_VIEWS[role] || [];
   // Any view outside the role falls back to that role's first allowed view.
   const activeView = allowedViews.includes(currentView) ? currentView : allowedViews[0];
 
@@ -49,8 +52,10 @@ export default function App() {
   };
 
   const handleActorChange = (nextActorId) => {
-    const nextActor = ACTORS.find((item) => item.id === nextActorId) || ACTORS[0];
+    const nextActor = actors.find((item) => item.id === nextActorId);
+    if (!nextActor) return;
     setActorId(nextActor.id);
+    setViewAsRole(nextActor.role);
     setCurrentView((ROLE_VIEWS[nextActor.role] || [])[0]);
     setIsMobileNavOpen(false);
     window.scrollTo({ top: 0, behavior: 'smooth' });
@@ -65,6 +70,8 @@ export default function App() {
     setIsComingSoonOpen(false);
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
+
+  if (!session) return <LoginPage />;
 
   return (
     <div className="min-h-screen bg-[#F6F9FB] text-[#172033] flex flex-col antialiased selection:bg-[#E8F7F3] selection:text-[#123B78]">
@@ -86,7 +93,7 @@ export default function App() {
           <Sidebar
             currentView={activeView}
             allowedViews={allowedViews}
-            role={actor.role}
+            role={role}
             onNavigate={handleNavigate}
             isCollapsed={isSidebarCollapsed}
             onToggleCollapse={() => setIsSidebarCollapsed(!isSidebarCollapsed)}
@@ -113,7 +120,7 @@ export default function App() {
               <Sidebar
                 currentView={activeView}
                 allowedViews={allowedViews}
-                role={actor.role}
+                role={role}
                 onNavigate={handleNavigate}
                 onCloseMobile={() => setIsMobileNavOpen(false)}
                 isCollapsed={false}
@@ -129,9 +136,10 @@ export default function App() {
             isSidebarCollapsed={isSidebarCollapsed}
             onToggleSidebar={() => setIsSidebarCollapsed(!isSidebarCollapsed)}
             currentView={activeView}
-            actorId={actorId}
-            actors={ACTORS}
+            actorId={actorId || session.employeeId}
+            actors={actors}
             onActorChange={handleActorChange}
+            onSignOut={signOut}
           />
 
           <main className="flex-1 p-4 md:p-8 max-w-7xl w-full mx-auto">
@@ -151,9 +159,14 @@ export default function App() {
               />
             )}
 
+            {/* View 7: BACKEND CONSOLE (ADMIN only — all plants) */}
+            {activeView === 'backend' && (
+              <BackendPage onTriggerComingSoon={handleTriggerComingSoon} />
+            )}
+
             {/* View 6: PAYMENT WORKLIST (unpaid records bucketed by due date) */}
             {activeView === 'worklist' && (
-              <WorklistPage role={actor.role} onNavigate={handleNavigate} />
+              <WorklistPage role={role} onNavigate={handleNavigate} />
             )}
 
             {/* View 3: CREATE INVOICE (Visual Mock Form) */}

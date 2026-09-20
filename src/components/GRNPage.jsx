@@ -1,12 +1,13 @@
 import React, { useState } from 'react';
 import { ArrowLeft, PackagePlus, Sparkles, Lock, CheckCircle2 } from 'lucide-react';
 import { useAppState } from '../context/AppStateContext.jsx';
-import { activeSuppliers } from '../data/database.js';
+import { useSession } from '../context/SessionContext.jsx';
 
 export default function GRNPage({ onBackToDashboard, onTriggerComingSoon }) {
   const { addRecord } = useAppState();
+  const { suppliers: activeSuppliers } = useSession();
 
-  const [supplierId, setSupplierId] = useState(activeSuppliers[0].supplierId);
+  const [supplierId, setSupplierId] = useState(activeSuppliers[0]?.supplierId || '');
   const [grnDate, setGrnDate] = useState('2026-09-18');
   const [totalValue, setTotalValue] = useState('180000');
   const [savedMessage, setSavedMessage] = useState('');

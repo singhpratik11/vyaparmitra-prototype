@@ -1,5 +1,9 @@
 import React, { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react';
-import { activeSuppliers } from '../data/database.js';
+import { suppliersByVendor } from '../data/database.js';
+import { useSession } from './SessionContext.jsx';
+
+/** Every tenant's suppliers, for resolving payment terms off a record's party name. */
+const ALL_SUPPLIERS = Object.values(suppliersByVendor).flat();
 
 const STORAGE_KEY = 'vyaparmitra:appState:v1';
 
@@ -44,7 +48,7 @@ export function getPaymentTermsDays(record) {
   const own = Number(record?.paymentTermsDays);
   if (own) return own;
   if (record?.type === 'Purchase') {
-    const supplier = activeSuppliers.find((item) => item.name === record?.party);
+    const supplier = ALL_SUPPLIERS.find((item) => item.name === record?.party);
     if (supplier) return Number(supplier.paymentTermsDays) || 0;
   }
   return 0;
@@ -183,6 +187,8 @@ function withPaymentDefaults(record) {
     paymentProof: record?.paymentProof ?? LEGACY_SOURCE_PROOF[paymentSource] ?? null,
     receiptFileName: record?.receiptFileName ?? null,
     paymentDirection: record?.paymentDirection ?? (record?.type === 'Purchase' ? 'Payable' : 'Receivable'),
+    // Records saved before tenants existed belong to the plant the app ran as.
+    vendorId: record?.vendorId ?? 'VM-0001',
   };
 
   // Anything short of a bank match must not carry an on-time flag from the old model.
@@ -197,6 +203,7 @@ function createRecordId() {
 }
 
 export function AppStateProvider({ children }) {
+  const { scopeVendorId } = useSession();
   const [state, setState] = useState(readPersistedState);
 
   useEffect(() => {
@@ -207,10 +214,11 @@ export function AppStateProvider({ children }) {
     }
   }, [state]);
 
-  /** Adds a record, filling in id and the unverified defaults. */
+  /** Adds a record, filling in id, the tenant it belongs to, and the unverified defaults. */
   const addRecord = useCallback((record) => {
     const newRecord = withPaymentDefaults({
       id: record?.id || createRecordId(),
+      vendorId: record?.vendorId ?? scopeVendorId ?? null,
       type: record?.type ?? 'Sale',
       party: record?.party ?? '',
       amount: Number(record?.amount) || 0,
@@ -222,7 +230,7 @@ export function AppStateProvider({ children }) {
     });
     setState((prev) => ({ ...prev, records: [newRecord, ...prev.records] }));
     return newRecord;
-  }, []);
+  }, [scopeVendorId]);
 
   /** Marks one record Verified and stamps where the verification came from. */
   const verifyRecord = useCallback((id, verificationSource = null) => {
@@ -293,9 +301,16 @@ export function AppStateProvider({ children }) {
     setState((prev) => ({ ...prev, lenderDecision: lenderDecision ?? null }));
   }, []);
 
+  // A tenant only ever sees its own ledger; an admin sees the customer they picked.
+  const scopedRecords = useMemo(
+    () => state.records.filter((record) => record.vendorId === scopeVendorId),
+    [state.records, scopeVendorId]
+  );
+
   const value = useMemo(
     () => ({
-      records: state.records,
+      records: scopedRecords,
+      allRecords: state.records,
       profileShared: state.profileShared,
       lenderDecision: state.lenderDecision,
       addRecord,
@@ -306,6 +321,7 @@ export function AppStateProvider({ children }) {
       setLenderDecision,
     }),
     [
+      scopedRecords,
       state.records,
       state.profileShared,
       state.lenderDecision,
