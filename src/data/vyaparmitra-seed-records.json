@@ -11,7 +11,7 @@
     "strongThreshold": 75,
     "improvingThreshold": 50,
     "parameters": {
-      "onTimePaymentPct": "paid-on-time / all paid records",
+      "onTimePaymentPct": "paid-on-time / bank-confirmed paid records (self-reported receipts excluded)",
       "verifiedTxnsPct": "verified / all records",
       "tradeVolumeLakhPerMonth": "sales value / 3 months, in lakh",
       "largestBuyerConcentrationPct": "largest buyer share of sales value; diversification sub-score = 100 - this"

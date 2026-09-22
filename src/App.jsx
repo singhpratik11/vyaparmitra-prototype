@@ -6,6 +6,7 @@ import DashboardPage from './components/DashboardPage';
 import InvoicePage from './components/InvoicePage';
 import GRNPage from './components/GRNPage';
 import WorklistPage from './components/WorklistPage';
+import AuditLogPage from './components/AuditLogPage';
 import LenderProfilePage from './components/LenderProfilePage';
 import ComingSoonModal from './components/ComingSoonModal';
 import LoginPage from './components/LoginPage';
@@ -16,7 +17,7 @@ import { useSession } from './context/SessionContext.jsx';
 // Simulated segregation of duties — no real auth, no server check.
 // Role names match the Role column of the workbook's Users sheet.
 const ROLE_VIEWS = {
-  Owner: ['home', 'dashboard', 'worklist', 'create-invoice', 'create-grn'],
+  Owner: ['home', 'dashboard', 'worklist', 'create-invoice', 'create-grn', 'audit'],
   'Billing Clerk': ['create-invoice'],
   'Warehouse Clerk': ['create-grn', 'worklist'],
   Finance: ['home', 'dashboard', 'worklist', 'create-invoice', 'create-grn'],
@@ -25,7 +26,7 @@ const ROLE_VIEWS = {
 };
 
 export default function App() {
-  const { session, role, tenantUsers, isAdmin, signOut, setViewAsRole } = useSession();
+  const { session, role, tenantUsers, isAdmin, signOut, setViewAsRole, scopeVendorId } = useSession();
   const [actorId, setActorId] = useState(null);
   const [currentView, setCurrentView] = useState('home');
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
@@ -162,6 +163,11 @@ export default function App() {
                 onNavigate={handleNavigate}
                 onTriggerComingSoon={handleTriggerComingSoon}
               />
+            )}
+
+            {/* View 8: AUDIT LOG (Owner sees their own plant's trail) */}
+            {activeView === 'audit' && (
+              <AuditLogPage vendorId={scopeVendorId} onNavigate={handleNavigate} />
             )}
 
             {/* View 7: BACKEND CONSOLE (ADMIN only — all plants) */}

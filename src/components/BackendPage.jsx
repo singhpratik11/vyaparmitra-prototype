@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { ArrowLeft, Building2, Globe2, Lock, RotateCcw } from 'lucide-react';
 import CreditworthinessCard from './CreditworthinessCard';
 import RecentActivityTable from './RecentActivityTable';
+import AuditLogPage from './AuditLogPage';
 import { customers, suppliersByVendor, itemsByVendor, buyersByVendor, scoreModel } from '../data/database.js';
 import { useSession } from '../context/SessionContext.jsx';
 import { useAppState } from '../context/AppStateContext.jsx';
@@ -171,6 +172,7 @@ export default function BackendPage({ onTriggerComingSoon }) {
             { id: 'customer', label: 'Select a customer' },
             { id: 'global', label: 'Global data' },
             { id: 'retention', label: 'Retention' },
+            { id: 'audit', label: 'Audit log' },
           ].map((option) => (
             <button
               key={option.id}
@@ -618,6 +620,8 @@ export default function BackendPage({ onTriggerComingSoon }) {
           ))}
         </>
       )}
+
+      {mode === 'audit' && <AuditLogPage />}
 
       {mode === 'retention' && (
         <section aria-label="Cohort Retention">

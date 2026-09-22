@@ -1,6 +1,6 @@
 import React, { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react';
 import { suppliersByVendor } from '../data/database.js';
-import { buildSeedRecords } from '../data/seed.js';
+import { buildSeedRecords, buildSeedAuditLog } from '../data/seed.js';
 import { useSession } from './SessionContext.jsx';
 
 /** Every tenant's suppliers, for resolving payment terms off a record's party name. */
@@ -157,6 +157,7 @@ export function getPaymentPerformance(records, today = todayIsoDate()) {
 /** A fresh session opens on the demo ledger rather than three empty plants. */
 function freshState() {
   return {
+    auditLog: buildSeedAuditLog(),
     records: buildSeedRecords(),
     profileShared: false,
     lenderDecision: null,
@@ -180,6 +181,8 @@ function readPersistedState() {
 
     return {
       records: stored,
+      // Storage written before the audit trail existed starts from the seeded history.
+      auditLog: Array.isArray(parsed?.auditLog) ? parsed.auditLog : buildSeedAuditLog(),
       profileShared: Boolean(parsed?.profileShared),
       lenderDecision: parsed?.lenderDecision ?? null,
     };
@@ -212,8 +215,29 @@ function createRecordId() {
 }
 
 export function AppStateProvider({ children }) {
-  const { scopeVendorId } = useSession();
+  const { scopeVendorId, session } = useSession();
   const [state, setState] = useState(readPersistedState);
+
+  /**
+   * Stamps who did what. The signed-in user is recorded even when "View as (demo)" is
+   * set, so the switcher cannot put someone else's name on an action. An admin's work
+   * is filed under the tenant it changed, attributed to the admin.
+   */
+  const appendAudit = useCallback(
+    (previous, action, target) => [
+      {
+        timestamp: new Date().toISOString(),
+        vendorId: scopeVendorId ?? session?.vendorId ?? null,
+        employeeId: session?.employeeId ?? null,
+        name: session?.name ?? 'Unknown',
+        role: session?.role ?? 'Unknown',
+        action,
+        target,
+      },
+      ...(previous.auditLog || []),
+    ],
+    [scopeVendorId, session]
+  );
 
   useEffect(() => {
     try {
@@ -237,9 +261,17 @@ export function AppStateProvider({ children }) {
       verificationSource: record?.verificationSource ?? null,
       paidOnTime: record?.paidOnTime ?? null,
     });
-    setState((prev) => ({ ...prev, records: [newRecord, ...prev.records] }));
+    setState((prev) => ({
+      ...prev,
+      records: [newRecord, ...prev.records],
+      auditLog: appendAudit(
+        prev,
+        newRecord.type === 'Purchase' ? 'Recorded goods receipt' : 'Recorded sale invoice',
+        `${newRecord.id} · ${newRecord.party}`
+      ),
+    }));
     return newRecord;
-  }, [scopeVendorId]);
+  }, [scopeVendorId, appendAudit]);
 
   /** Marks one record Verified and stamps where the verification came from. */
   const verifyRecord = useCallback((id, verificationSource = null) => {
@@ -250,12 +282,21 @@ export function AppStateProvider({ children }) {
           ? { ...record, status: 'Verified', verificationSource }
           : record
       ),
+      auditLog: appendAudit(prev, 'Verified record', `${id}${verificationSource ? ` · ${verificationSource}` : ''}`),
     }));
-  }, []);
+  }, [appendAudit]);
 
   const setProfileShared = useCallback((profileShared) => {
-    setState((prev) => ({ ...prev, profileShared: Boolean(profileShared) }));
-  }, []);
+    setState((prev) => ({
+      ...prev,
+      profileShared: Boolean(profileShared),
+      auditLog: appendAudit(
+        prev,
+        profileShared ? 'Shared profile with lending partner' : 'Stopped sharing profile',
+        'Readiness profile'
+      ),
+    }));
+  }, [appendAudit]);
 
   /**
    * Logs a receipt. Clears the reminder and marks the record paid, but the proof is
@@ -264,6 +305,7 @@ export function AppStateProvider({ children }) {
   const recordPayment = useCallback((id, { amountPaid, paidDate, receiptFileName }) => {
     setState((prev) => ({
       ...prev,
+      auditLog: appendAudit(prev, 'Logged payment receipt', id),
       records: prev.records.map((record) => {
         if (record.id !== id) return record;
 
@@ -284,7 +326,7 @@ export function AppStateProvider({ children }) {
         return next;
       }),
     }));
-  }, []);
+  }, [appendAudit]);
 
   /**
    * Simulated Account Aggregator match — no bank call is made. It confirms the inflow
@@ -294,6 +336,7 @@ export function AppStateProvider({ children }) {
   const bankMatchPayment = useCallback((id) => {
     setState((prev) => ({
       ...prev,
+      auditLog: appendAudit(prev, 'Bank-matched payment', id),
       records: prev.records.map((record) => {
         if (record.id !== id || !record.paidDate) return record;
 
@@ -303,17 +346,25 @@ export function AppStateProvider({ children }) {
         return next;
       }),
     }));
-  }, []);
+  }, [appendAudit]);
 
   /** Restores the seeded demo ledger and clears any sharing or lender decision. */
   const resetDemoData = useCallback(() => {
-    setState(freshState());
-  }, []);
+    // The seeded history comes back with the seeded ledger, plus a note of the reset.
+    setState((prev) => {
+      const fresh = freshState();
+      return { ...fresh, auditLog: appendAudit(fresh, 'Reset demo data', 'All tenants') };
+    });
+  }, [appendAudit]);
 
   /** Records the lending partner's decision: 'Approve', 'Make offer' or 'Decline'. */
   const setLenderDecision = useCallback((lenderDecision) => {
-    setState((prev) => ({ ...prev, lenderDecision: lenderDecision ?? null }));
-  }, []);
+    setState((prev) => ({
+      ...prev,
+      lenderDecision: lenderDecision ?? null,
+      auditLog: appendAudit(prev, 'Returned lender decision', String(lenderDecision ?? 'Cleared')),
+    }));
+  }, [appendAudit]);
 
   // A tenant only ever sees its own ledger; an admin sees the customer they picked.
   const scopedRecords = useMemo(
@@ -325,6 +376,7 @@ export function AppStateProvider({ children }) {
     () => ({
       records: scopedRecords,
       allRecords: state.records,
+      auditLog: state.auditLog || [],
       profileShared: state.profileShared,
       lenderDecision: state.lenderDecision,
       addRecord,
@@ -338,6 +390,7 @@ export function AppStateProvider({ children }) {
     [
       scopedRecords,
       state.records,
+      state.auditLog,
       state.profileShared,
       state.lenderDecision,
       addRecord,

@@ -10,7 +10,8 @@ import {
   PanelLeftOpen,
   ChevronRight,
   CalendarClock,
-  Database
+  Database,
+  ScrollText
 } from 'lucide-react';
 import Logo from './Logo';
 import { useSession } from '../context/SessionContext.jsx';
@@ -62,6 +63,12 @@ export default function Sidebar({
       icon: CalendarClock,
       description: 'Unpaid Records by Due Date',
       badge: overdueCount ? `${overdueCount} overdue` : null,
+    },
+    {
+      id: 'audit',
+      label: 'Audit Log',
+      icon: ScrollText,
+      description: 'Who Changed What',
     },
     {
       id: 'create-invoice',
