@@ -111,8 +111,10 @@ export default function CreditworthinessCard() {
             <p className="text-base font-bold text-[#123B78] mt-1">{formatShare(onTimeShare)}</p>
             <p className="text-[10px] text-[#526174]">
               {onTimeShare === null
-                ? 'No settled payments yet'
-                : `${measured.paidCount} settled payment${measured.paidCount === 1 ? '' : 's'}`}
+                ? 'No bank-confirmed payments yet'
+                : measured.selfReportedCount
+                  ? `${measured.confirmedCount} bank-confirmed · ${measured.selfReportedCount} self-reported excluded`
+                  : `${measured.confirmedCount} bank-confirmed payment${measured.confirmedCount === 1 ? '' : 's'}`}
             </p>
           </div>
 

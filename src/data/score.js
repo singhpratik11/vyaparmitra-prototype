@@ -2,18 +2,26 @@
 // console so the two can never drift. The parameter definitions come from scoreModel
 // in vyaparmitra-seed-records.json and are followed literally:
 //
-//   onTimePaymentPct             paid-on-time / all paid records
+//   onTimePaymentPct             paid-on-time / BANK-CONFIRMED paid records.
+//                                Deliberately narrower than the definition string in the
+//                                seed file: a self-reported receipt is excluded from both
+//                                sides of this ratio, matching the verification thesis.
 //   verifiedTxnsPct              verified / all records
 //   tradeVolumeLakhPerMonth      sales value / 3 months, in lakh
 //   largestBuyerConcentrationPct largest buyer share of sales value
 //                                (diversification sub-score = 100 - this)
 import { scoreModel } from './database.js';
+import { PAYMENT_PROOF_CONFIRMED } from '../context/AppStateContext.jsx';
 
 /** The window the seeded ledger covers; the model quotes volume per month over it. */
 const VOLUME_MONTHS = 3;
 
 export const PARAMETERS = [
-  { key: 'onTimePayment', label: 'On-time payment %', definition: scoreModel.parameters.onTimePaymentPct },
+  {
+    key: 'onTimePayment',
+    label: 'On-time payment %',
+    definition: 'paid-on-time / bank-confirmed paid records; self-reported receipts excluded',
+  },
   { key: 'verifiedTxns', label: 'Verified transactions %', definition: scoreModel.parameters.verifiedTxnsPct },
   { key: 'tradeVolume', label: 'Monthly trade volume', definition: scoreModel.parameters.tradeVolumeLakhPerMonth },
   {
@@ -31,7 +39,11 @@ function sumAmounts(records) {
 export function measureTenant(records) {
   const sales = records.filter((record) => record.type === 'Sale');
   const salesValue = sumAmounts(sales);
-  const paid = records.filter((record) => record.paymentStatus === 'Paid');
+  // Only a bank-confirmed settlement counts either way: a self-reported receipt can
+  // neither lift nor drag the on-time ratio.
+  const paid = records.filter(
+    (record) => record.paymentStatus === 'Paid' && record.paymentProof === PAYMENT_PROOF_CONFIRMED
+  );
 
   const byBuyer = new Map();
   sales.forEach((record) => {
@@ -40,7 +52,10 @@ export function measureTenant(records) {
 
   return {
     recordCount: records.length,
-    paidCount: paid.length,
+    confirmedCount: paid.length,
+    selfReportedCount: records.filter(
+      (record) => record.paymentStatus === 'Paid' && record.paymentProof !== PAYMENT_PROOF_CONFIRMED
+    ).length,
     onTimePct: paid.length
       ? (paid.filter((record) => record.paidOnTime === true).length / paid.length) * 100
       : null,
@@ -73,7 +88,9 @@ export function scoreTenant(
 
   const values = {
     onTimePayment:
-      measured.onTimePct === null ? 'No paid records' : `${Math.round(measured.onTimePct)}%`,
+      measured.onTimePct === null
+        ? 'No bank-confirmed payments'
+        : `${Math.round(measured.onTimePct)}%`,
     verifiedTxns: measured.verifiedPct === null ? 'No records' : `${Math.round(measured.verifiedPct)}%`,
     tradeVolume: `₹${measured.tradeVolumeLakh.toFixed(1)}L / month`,
     buyerDiversification:

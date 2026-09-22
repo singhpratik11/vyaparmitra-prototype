@@ -454,16 +454,5 @@
       "weightedScore": 65.8,
       "readinessBand": "Improving"
     }
-  ],
-  "scoreModel": {
-    "weights": {
-      "onTimePayment": 0.35,
-      "verifiedTxns": 0.25,
-      "tradeVolume": 0.2,
-      "buyerDiversification": 0.2
-    },
-    "volumeTargetLakh": 50,
-    "strongThreshold": 75,
-    "improvingThreshold": 50
-  }
+  ]
 }
