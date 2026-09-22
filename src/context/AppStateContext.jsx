@@ -167,9 +167,17 @@ function readPersistedState() {
   try {
     const raw = window.localStorage.getItem(STORAGE_KEY);
     if (!raw) return freshState();
+
     const parsed = JSON.parse(raw);
+    const stored = Array.isArray(parsed?.records) ? parsed.records.map(withPaymentDefaults) : [];
+
+    // A browser that used the app before this seed existed carries an empty ledger.
+    // Nothing deletes records, so an empty array means "never seeded", not "cleared" —
+    // heal it here rather than making every such session start on blank screens.
+    if (stored.length === 0) return freshState();
+
     return {
-      records: Array.isArray(parsed?.records) ? parsed.records.map(withPaymentDefaults) : [],
+      records: stored,
       profileShared: Boolean(parsed?.profileShared),
       lenderDecision: parsed?.lenderDecision ?? null,
     };
