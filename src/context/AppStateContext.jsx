@@ -1,5 +1,6 @@
 import React, { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react';
 import { suppliersByVendor } from '../data/database.js';
+import { buildSeedRecords } from '../data/seed.js';
 import { useSession } from './SessionContext.jsx';
 
 /** Every tenant's suppliers, for resolving payment terms off a record's party name. */
@@ -151,19 +152,21 @@ export function getPaymentPerformance(records, today = todayIsoDate()) {
  * @property {'Approve'|'Make offer'|'Decline'|null} lenderDecision
  */
 
-/** @type {AppState} */
-const INITIAL_STATE = {
-  records: [],
-  profileShared: false,
-  lenderDecision: null,
-};
+/** A fresh session opens on the demo ledger rather than three empty plants. */
+function freshState() {
+  return {
+    records: buildSeedRecords(),
+    profileShared: false,
+    lenderDecision: null,
+  };
+}
 
 const AppStateContext = createContext(null);
 
 function readPersistedState() {
   try {
     const raw = window.localStorage.getItem(STORAGE_KEY);
-    if (!raw) return INITIAL_STATE;
+    if (!raw) return freshState();
     const parsed = JSON.parse(raw);
     return {
       records: Array.isArray(parsed?.records) ? parsed.records.map(withPaymentDefaults) : [],
@@ -171,8 +174,8 @@ function readPersistedState() {
       lenderDecision: parsed?.lenderDecision ?? null,
     };
   } catch {
-    // Private window, blocked storage, or corrupt payload: start clean.
-    return INITIAL_STATE;
+    // Private window, blocked storage, or corrupt payload: start from the demo ledger.
+    return freshState();
   }
 }
 
@@ -296,6 +299,11 @@ export function AppStateProvider({ children }) {
     }));
   }, []);
 
+  /** Restores the seeded demo ledger and clears any sharing or lender decision. */
+  const resetDemoData = useCallback(() => {
+    setState(freshState());
+  }, []);
+
   /** Records the lending partner's decision: 'Approve', 'Make offer' or 'Decline'. */
   const setLenderDecision = useCallback((lenderDecision) => {
     setState((prev) => ({ ...prev, lenderDecision: lenderDecision ?? null }));
@@ -317,6 +325,7 @@ export function AppStateProvider({ children }) {
       verifyRecord,
       recordPayment,
       bankMatchPayment,
+      resetDemoData,
       setProfileShared,
       setLenderDecision,
     }),
@@ -329,6 +338,7 @@ export function AppStateProvider({ children }) {
       verifyRecord,
       recordPayment,
       bankMatchPayment,
+      resetDemoData,
       setProfileShared,
       setLenderDecision,
     ]

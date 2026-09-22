@@ -1,9 +1,105 @@
 import React, { useState } from 'react';
-import { ArrowLeft, Building2, Globe2, Lock } from 'lucide-react';
+import { ArrowLeft, Building2, Globe2, Lock, RotateCcw } from 'lucide-react';
 import CreditworthinessCard from './CreditworthinessCard';
 import RecentActivityTable from './RecentActivityTable';
-import { customers, suppliersByVendor, itemsByVendor, buyersByVendor, masterScore } from '../data/database.js';
+import { customers, suppliersByVendor, itemsByVendor, buyersByVendor, scoreModel } from '../data/database.js';
 import { useSession } from '../context/SessionContext.jsx';
+import {
+  useAppState,
+  isBankConfirmed,
+  hasMatured,
+  getDaysLate,
+  todayIsoDate,
+} from '../context/AppStateContext.jsx';
+
+const PARAMETERS = [
+  { key: 'onTimePayment', label: 'On-time payment %' },
+  { key: 'verifiedTxns', label: 'Verified transactions %' },
+  { key: 'tradeVolume', label: 'Monthly trade volume' },
+  { key: 'buyerDiversification', label: 'Largest-buyer concentration' },
+];
+
+const DAY_MS = 24 * 60 * 60 * 1000;
+
+function sumAmounts(records) {
+  return records.reduce((total, record) => total + (Number(record.amount) || 0), 0);
+}
+
+/** Months of history the ledger actually covers, so volume is per month, not per seed. */
+function monthsCovered(records, today = todayIsoDate()) {
+  if (!records.length) return 1;
+  const earliest = records.reduce((min, record) => (record.date < min ? record.date : min), records[0].date);
+  const span = (Date.parse(today) - Date.parse(earliest)) / DAY_MS / 30.4;
+  return Math.max(1, span);
+}
+
+/** The four raw parameters, measured off this tenant's own records. */
+function measureTenant(records) {
+  const sales = records.filter((record) => record.type === 'Sale');
+  const salesValue = sumAmounts(sales);
+
+  const confirmed = records.filter((record) => isBankConfirmed(record) && record.paidDate);
+  const matured = confirmed.filter((record) => hasMatured(record));
+  const onTime = matured.filter((record) => (getDaysLate(record) ?? 1) <= 0);
+
+  const byBuyer = new Map();
+  sales.forEach((record) => {
+    byBuyer.set(record.party, (byBuyer.get(record.party) || 0) + (Number(record.amount) || 0));
+  });
+
+  return {
+    recordCount: records.length,
+    onTimePct: matured.length ? (onTime.length / matured.length) * 100 : null,
+    verifiedPct: records.length
+      ? (records.filter((record) => record.status === 'Verified').length / records.length) * 100
+      : null,
+    monthlyVolumeLakh: sumAmounts(records) / monthsCovered(records) / 100000,
+    concentrationPct: salesValue ? (Math.max(...byBuyer.values()) / salesValue) * 100 : null,
+  };
+}
+
+/** Turns the raw parameters into weighted sub-scores using the current model. */
+function scoreTenant(records, weights, thresholds, volumeTargetLakh) {
+  const measured = measureTenant(records);
+
+  const subScores = {
+    onTimePayment: measured.onTimePct ?? 0,
+    verifiedTxns: measured.verifiedPct ?? 0,
+    tradeVolume: Math.min(100, (measured.monthlyVolumeLakh / volumeTargetLakh) * 100),
+    buyerDiversification: measured.concentrationPct === null ? 0 : 100 - measured.concentrationPct,
+  };
+
+  const rows = PARAMETERS.map((parameter) => {
+    const subScore = subScores[parameter.key];
+    const weight = weights[parameter.key];
+    return {
+      ...parameter,
+      subScore,
+      weight,
+      contribution: subScore * weight,
+      value:
+        parameter.key === 'onTimePayment'
+          ? measured.onTimePct === null
+            ? 'No matured bank-confirmed payment'
+            : `${Math.round(measured.onTimePct)}%`
+          : parameter.key === 'verifiedTxns'
+            ? measured.verifiedPct === null
+              ? 'No records'
+              : `${Math.round(measured.verifiedPct)}%`
+            : parameter.key === 'tradeVolume'
+              ? `₹${measured.monthlyVolumeLakh.toFixed(1)}L / month`
+              : measured.concentrationPct === null
+                ? 'No sales'
+                : `${Math.round(measured.concentrationPct)}%`,
+    };
+  });
+
+  const weighted = rows.reduce((total, row) => total + row.contribution, 0);
+  const band =
+    weighted >= thresholds.strong ? 'Strong' : weighted >= thresholds.improving ? 'Improving' : 'Needs Attention';
+
+  return { measured, rows, weighted, band };
+}
 
 const BAND_STYLES = {
   Strong: 'bg-emerald-50 text-emerald-700 border-emerald-200',
@@ -62,10 +158,92 @@ function formatPct(value) {
   return value === null || value === undefined ? '—' : `${value}%`;
 }
 
+/** Parameter-by-parameter view of how a tenant's weighted score was reached. */
+function ScoreBreakdown({ title, subtitle, score }) {
+  return (
+    <div className="bg-white rounded-2xl border border-slate-200/90 p-6 md:p-7 shadow-xs">
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 pb-5 border-b border-slate-100">
+        <div>
+          <div className="flex items-center gap-2">
+            <h3 className="text-xl font-bold text-[#172033] tracking-tight">{title}</h3>
+            <span className="text-[10px] font-semibold uppercase tracking-wider bg-slate-100 text-[#526174] px-2 py-0.5 rounded">
+              Backend model
+            </span>
+          </div>
+          <p className="text-xs md:text-sm text-[#526174] mt-0.5">{subtitle}</p>
+        </div>
+
+        <span
+          className={`inline-block px-2.5 py-0.5 rounded-full text-xs font-semibold border self-start sm:self-auto ${
+            BAND_STYLES[score.band]
+          }`}
+        >
+          {score.band}
+        </span>
+      </div>
+
+      <div className="overflow-x-auto mt-4">
+        <table className="w-full text-left text-sm border-collapse">
+          <thead>
+            <tr className="border-b border-slate-100 text-[11px] font-bold text-[#526174] uppercase tracking-wider">
+              <th className="py-3 px-3">Parameter</th>
+              <th className="py-3 px-3">Value</th>
+              <th className="py-3 px-3 text-right">Weight</th>
+              <th className="py-3 px-3 text-right">Sub-score (0–100)</th>
+              <th className="py-3 px-3 text-right">Contribution</th>
+            </tr>
+          </thead>
+          <tbody className="divide-y divide-slate-100">
+            {score.rows.map((row) => (
+              <tr key={row.key} className="hover:bg-[#F6F9FB]/80 transition-colors">
+                <td className="py-3.5 px-3 font-semibold text-[#172033] text-xs md:text-sm">{row.label}</td>
+                <td className="py-3.5 px-3 text-xs md:text-sm text-[#526174]">{row.value}</td>
+                <td className="py-3.5 px-3 text-right font-mono text-xs md:text-sm text-[#526174]">
+                  {Math.round(row.weight * 100)}%
+                </td>
+                <td className="py-3.5 px-3 text-right font-mono text-xs md:text-sm text-[#172033]">
+                  {row.subScore.toFixed(1)}
+                </td>
+                <td className="py-3.5 px-3 text-right font-mono text-xs md:text-sm text-[#172033]">
+                  {row.contribution.toFixed(1)}
+                </td>
+              </tr>
+            ))}
+            <tr className="border-t border-slate-200">
+              <td className="py-3.5 px-3 font-bold text-[#172033] text-xs md:text-sm" colSpan={4}>
+                Weighted Score
+              </td>
+              <td className="py-3.5 px-3 text-right font-mono font-bold text-[#123B78] text-xs md:text-sm">
+                {score.weighted.toFixed(1)}
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  );
+}
+
 export default function BackendPage({ onTriggerComingSoon }) {
   const { selectedCustomerId, selectCustomer, session } = useSession();
+  const { allRecords, resetDemoData } = useAppState();
   const [mode, setMode] = useState('customer');
   const [query, setQuery] = useState('');
+  const [weights, setWeights] = useState(scoreModel.weights);
+  const [thresholds, setThresholds] = useState({
+    strong: scoreModel.strongThreshold,
+    improving: scoreModel.improvingThreshold,
+  });
+
+  const weightTotalPct = Math.round(
+    PARAMETERS.reduce((total, parameter) => total + (Number(weights[parameter.key]) || 0), 0) * 100
+  );
+
+  const recordsFor = (vendorId) => allRecords.filter((record) => record.vendorId === vendorId);
+  const scoreFor = (vendorId) =>
+    scoreTenant(recordsFor(vendorId), weights, thresholds, scoreModel.volumeTargetLakh);
+
+  const selectedScore = selectedCustomerId ? scoreFor(selectedCustomerId) : null;
 
   const suppliers = suppliersByVendor[selectedCustomerId] || [];
   const items = itemsByVendor[selectedCustomerId] || [];
@@ -116,7 +294,18 @@ export default function BackendPage({ onTriggerComingSoon }) {
         </div>
 
         {/* Mode choice */}
-        <div className="flex items-center gap-1.5 p-1 bg-[#F6F9FB] rounded-xl border border-slate-200/70 self-start sm:self-auto">
+        <div className="flex items-center gap-2.5 self-start sm:self-auto">
+          <button
+            type="button"
+            onClick={resetDemoData}
+            title="Restore the seeded demo ledger for all three plants"
+            className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-white border border-slate-200/80 text-[#123B78] hover:bg-slate-50 text-xs font-bold shadow-2xs transition-colors"
+          >
+            <RotateCcw className="w-4 h-4 text-[#1265A8]" />
+            <span>Reset demo data</span>
+          </button>
+
+        <div className="flex items-center gap-1.5 p-1 bg-[#F6F9FB] rounded-xl border border-slate-200/70">
           {[
             { id: 'customer', label: 'Select a customer' },
             { id: 'global', label: 'Global data' },
@@ -134,6 +323,7 @@ export default function BackendPage({ onTriggerComingSoon }) {
               {option.label}
             </button>
           ))}
+        </div>
         </div>
       </div>
 
@@ -204,6 +394,14 @@ export default function BackendPage({ onTriggerComingSoon }) {
         <>
               <section aria-label="Customer Readiness">
                 <CreditworthinessCard />
+              </section>
+
+              <section aria-label="Customer Score Breakdown">
+                <ScoreBreakdown
+                  title="Score Breakdown"
+                  subtitle={`Computed live from this plant's ${selectedScore.measured.recordCount} records and the current weights. Backend view only — the MSME app never shows this number.`}
+                  score={selectedScore}
+                />
               </section>
 
               <section aria-label="Customer Masters">
@@ -334,91 +532,230 @@ export default function BackendPage({ onTriggerComingSoon }) {
       )}
 
       {mode === 'global' && (
-        <section aria-label="Global Data">
-          <div className="bg-white rounded-2xl border border-slate-200/90 p-6 md:p-7 shadow-xs">
-            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 pb-5 border-b border-slate-100">
-              <div>
-                <div className="flex items-center gap-2">
-                  <h3 className="text-xl font-bold text-[#172033] tracking-tight">
-                    Master Creditworthiness Score
-                  </h3>
-                  <span className="text-[10px] font-semibold uppercase tracking-wider bg-slate-100 text-[#526174] px-2 py-0.5 rounded">
-                    Backend model
-                  </span>
+        <>
+          <section aria-label="Score Model Settings">
+            <div className="bg-white rounded-2xl border border-slate-200/90 p-6 md:p-7 shadow-xs">
+              <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 pb-5 border-b border-slate-100 mb-6">
+                <div>
+                  <h3 className="text-xl font-bold text-[#172033] tracking-tight">Score Model</h3>
+                  <p className="text-xs md:text-sm text-[#526174] mt-0.5">
+                    Edit a weight or threshold and every plant re-scores immediately. Session only — the
+                    JSON defaults come back on reload.
+                  </p>
                 </div>
-                <p className="text-xs md:text-sm text-[#526174] mt-0.5">
-                  Weighted model across every customer. Backend view only — the MSME app never shows this number.
-                </p>
+
+                <span
+                  className={`inline-block px-2.5 py-0.5 rounded-full text-xs font-semibold border self-start sm:self-auto ${
+                    weightTotalPct === 100
+                      ? 'bg-[#E8F7F3] text-[#123B78] border-[#10B8A5]/30'
+                      : 'bg-amber-50 text-amber-800 border-amber-200'
+                  }`}
+                >
+                  {weightTotalPct === 100
+                    ? 'Weights total 100%'
+                    : `Weights must total 100% — currently ${weightTotalPct}%`}
+                </span>
               </div>
 
-              <span className="inline-flex items-center gap-1.5 px-3 py-1 bg-amber-50 border border-amber-200 text-amber-800 rounded-full text-xs font-semibold self-start sm:self-auto">
-                <Lock className="w-3.5 h-3.5" />
-                <span>Read Only</span>
-              </span>
-            </div>
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+                {PARAMETERS.map((parameter) => (
+                  <div
+                    key={parameter.key}
+                    className="p-4 rounded-xl bg-[#F6F9FB] border border-slate-200/70"
+                  >
+                    <label className="block text-xs font-semibold text-[#526174] mb-2">
+                      {parameter.label}
+                    </label>
+                    <input
+                      type="number"
+                      min="0"
+                      max="100"
+                      step="1"
+                      value={Math.round(weights[parameter.key] * 100)}
+                      onChange={(e) =>
+                        setWeights({
+                          ...weights,
+                          [parameter.key]: (Number(e.target.value) || 0) / 100,
+                        })
+                      }
+                      className="w-full px-3 py-2 rounded-xl border border-slate-200 bg-white text-[#172033] text-sm font-mono"
+                    />
+                    <p className="text-[10px] text-[#526174] mt-1.5">Weight %</p>
+                  </div>
+                ))}
+              </div>
 
-            <div className="overflow-x-auto mt-4">
-              <table className="w-full text-left text-sm border-collapse">
-                <thead>
-                  <tr className="border-b border-slate-100 text-[11px] font-bold text-[#526174] uppercase tracking-wider">
-                    <th className="py-3 px-3">Customer</th>
-                    <th className="py-3 px-3">Vendor ID</th>
-                    <th className="py-3 px-3 text-right">On-time</th>
-                    <th className="py-3 px-3 text-right">Verified</th>
-                    <th className="py-3 px-3 text-right">Volume (₹L)</th>
-                    <th className="py-3 px-3 text-right">Concentration</th>
-                    <th className="py-3 px-3 text-right">Weighted Score</th>
-                    <th className="py-3 px-3 text-center">Band</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-slate-100">
-                  {masterScore.map((row) => {
-                    const customer = customers.find((item) => item.vendorId === row.vendorId);
-                    return (
-                      <tr key={row.vendorId} className="hover:bg-[#F6F9FB]/80 transition-colors">
-                        <td className="py-3.5 px-3 font-semibold text-[#172033] text-xs md:text-sm">
-                          {customer ? customer.name : row.vendorId}
-                        </td>
-                        <td className="py-3.5 px-3 font-mono text-xs md:text-sm text-[#526174]">
-                          {row.vendorId}
-                        </td>
-                        <td className="py-3.5 px-3 text-right font-mono text-xs md:text-sm text-[#172033]">
-                          {formatPct(row.onTimePaymentPct)}
-                        </td>
-                        <td className="py-3.5 px-3 text-right font-mono text-xs md:text-sm text-[#172033]">
-                          {formatPct(row.verifiedTxnsPct)}
-                        </td>
-                        <td className="py-3.5 px-3 text-right font-mono text-xs md:text-sm text-[#172033]">
-                          {row.monthlyTradeVolumeLakh}
-                        </td>
-                        <td className="py-3.5 px-3 text-right font-mono text-xs md:text-sm text-[#172033]">
-                          {formatPct(row.largestBuyerConcentrationPct)}
-                        </td>
-                        <td className="py-3.5 px-3 text-right font-mono font-bold text-[#123B78] text-xs md:text-sm">
-                          {row.weightedScore}
-                        </td>
-                        <td className="py-3.5 px-3 text-center whitespace-nowrap">
-                          <span
-                            className={`inline-block px-2.5 py-0.5 rounded-full text-xs font-semibold border ${
-                              BAND_STYLES[row.readinessBand] || BAND_STYLES['Needs Attention']
-                            }`}
-                          >
-                            {row.readinessBand}
-                          </span>
-                        </td>
-                      </tr>
-                    );
-                  })}
-                </tbody>
-              </table>
-            </div>
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mt-4">
+                <div className="p-4 rounded-xl bg-[#F6F9FB] border border-slate-200/70">
+                  <label className="block text-xs font-semibold text-[#526174] mb-2">
+                    Strong threshold
+                  </label>
+                  <input
+                    type="number"
+                    min="0"
+                    max="100"
+                    value={thresholds.strong}
+                    onChange={(e) =>
+                      setThresholds({ ...thresholds, strong: Number(e.target.value) || 0 })
+                    }
+                    className="w-full px-3 py-2 rounded-xl border border-slate-200 bg-white text-[#172033] text-sm font-mono"
+                  />
+                  <p className="text-[10px] text-[#526174] mt-1.5">Score at or above = Strong</p>
+                </div>
 
-            <div className="mt-4 pt-3 border-t border-slate-100 flex flex-col sm:flex-row items-center justify-between text-xs text-[#526174]">
-              <span>Showing {masterScore.length} customers</span>
-              <span className="mt-2 sm:mt-0">Prototype — scores are seeded demo values</span>
+                <div className="p-4 rounded-xl bg-[#F6F9FB] border border-slate-200/70">
+                  <label className="block text-xs font-semibold text-[#526174] mb-2">
+                    Improving threshold
+                  </label>
+                  <input
+                    type="number"
+                    min="0"
+                    max="100"
+                    value={thresholds.improving}
+                    onChange={(e) =>
+                      setThresholds({ ...thresholds, improving: Number(e.target.value) || 0 })
+                    }
+                    className="w-full px-3 py-2 rounded-xl border border-slate-200 bg-white text-[#172033] text-sm font-mono"
+                  />
+                  <p className="text-[10px] text-[#526174] mt-1.5">Score at or above = Improving</p>
+                </div>
+
+                <div className="p-4 rounded-xl bg-[#F6F9FB] border border-slate-200/70">
+                  <label className="block text-xs font-semibold text-[#526174] mb-2">
+                    Volume target
+                  </label>
+                  <p className="text-base font-bold text-[#123B78] mt-1">
+                    ₹{scoreModel.volumeTargetLakh}L / month
+                  </p>
+                  <p className="text-[10px] text-[#526174] mt-1.5">Full marks on trade volume</p>
+                </div>
+
+                <div className="p-4 rounded-xl bg-[#F6F9FB] border border-slate-200/70">
+                  <label className="block text-xs font-semibold text-[#526174] mb-2">Reset</label>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setWeights(scoreModel.weights);
+                      setThresholds({
+                        strong: scoreModel.strongThreshold,
+                        improving: scoreModel.improvingThreshold,
+                      });
+                    }}
+                    className="w-full px-3 py-2 rounded-xl border border-slate-200 bg-white text-[#526174] hover:bg-slate-50 text-xs font-semibold transition-colors"
+                  >
+                    Restore JSON defaults
+                  </button>
+                </div>
+              </div>
             </div>
-          </div>
-        </section>
+          </section>
+
+          <section aria-label="Global Data">
+            <div className="bg-white rounded-2xl border border-slate-200/90 p-6 md:p-7 shadow-xs">
+              <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 pb-5 border-b border-slate-100">
+                <div>
+                  <div className="flex items-center gap-2">
+                    <h3 className="text-xl font-bold text-[#172033] tracking-tight">
+                      Master Creditworthiness Score
+                    </h3>
+                    <span className="text-[10px] font-semibold uppercase tracking-wider bg-slate-100 text-[#526174] px-2 py-0.5 rounded">
+                      Backend model
+                    </span>
+                  </div>
+                  <p className="text-xs md:text-sm text-[#526174] mt-0.5">
+                    Computed live from each plant's recorded trade. Backend view only — the MSME app
+                    never shows this number.
+                  </p>
+                </div>
+
+                <span className="inline-flex items-center gap-1.5 px-3 py-1 bg-amber-50 border border-amber-200 text-amber-800 rounded-full text-xs font-semibold self-start sm:self-auto">
+                  <Lock className="w-3.5 h-3.5" />
+                  <span>Read Only</span>
+                </span>
+              </div>
+
+              <div className="overflow-x-auto mt-4">
+                <table className="w-full text-left text-sm border-collapse">
+                  <thead>
+                    <tr className="border-b border-slate-100 text-[11px] font-bold text-[#526174] uppercase tracking-wider">
+                      <th className="py-3 px-3">Customer</th>
+                      <th className="py-3 px-3">Vendor ID</th>
+                      <th className="py-3 px-3 text-right">Records</th>
+                      <th className="py-3 px-3 text-right">On-time</th>
+                      <th className="py-3 px-3 text-right">Verified</th>
+                      <th className="py-3 px-3 text-right">Volume (₹L)</th>
+                      <th className="py-3 px-3 text-right">Concentration</th>
+                      <th className="py-3 px-3 text-right">Weighted Score</th>
+                      <th className="py-3 px-3 text-center">Band</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-100">
+                    {customers.map((customer) => {
+                      const score = scoreFor(customer.vendorId);
+                      const measured = score.measured;
+                      return (
+                        <tr key={customer.vendorId} className="hover:bg-[#F6F9FB]/80 transition-colors">
+                          <td className="py-3.5 px-3 font-semibold text-[#172033] text-xs md:text-sm">
+                            {customer.name}
+                          </td>
+                          <td className="py-3.5 px-3 font-mono text-xs md:text-sm text-[#526174]">
+                            {customer.vendorId}
+                          </td>
+                          <td className="py-3.5 px-3 text-right font-mono text-xs md:text-sm text-[#526174]">
+                            {measured.recordCount}
+                          </td>
+                          <td className="py-3.5 px-3 text-right font-mono text-xs md:text-sm text-[#172033]">
+                            {measured.onTimePct === null ? '—' : `${Math.round(measured.onTimePct)}%`}
+                          </td>
+                          <td className="py-3.5 px-3 text-right font-mono text-xs md:text-sm text-[#172033]">
+                            {measured.verifiedPct === null ? '—' : `${Math.round(measured.verifiedPct)}%`}
+                          </td>
+                          <td className="py-3.5 px-3 text-right font-mono text-xs md:text-sm text-[#172033]">
+                            {measured.monthlyVolumeLakh.toFixed(1)}
+                          </td>
+                          <td className="py-3.5 px-3 text-right font-mono text-xs md:text-sm text-[#172033]">
+                            {measured.concentrationPct === null
+                              ? '—'
+                              : `${Math.round(measured.concentrationPct)}%`}
+                          </td>
+                          <td className="py-3.5 px-3 text-right font-mono font-bold text-[#123B78] text-xs md:text-sm">
+                            {score.weighted.toFixed(1)}
+                          </td>
+                          <td className="py-3.5 px-3 text-center whitespace-nowrap">
+                            <span
+                              className={`inline-block px-2.5 py-0.5 rounded-full text-xs font-semibold border ${
+                                BAND_STYLES[score.band]
+                              }`}
+                            >
+                              {score.band}
+                            </span>
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+
+              <div className="mt-4 pt-3 border-t border-slate-100 flex flex-col sm:flex-row items-center justify-between text-xs text-[#526174]">
+                <span>Showing {customers.length} customers</span>
+                <span className="mt-2 sm:mt-0">
+                  Strong ≥ {thresholds.strong} · Improving ≥ {thresholds.improving}
+                </span>
+              </div>
+            </div>
+          </section>
+
+          {customers.map((customer) => (
+            <section key={customer.vendorId} aria-label={`Score Breakdown ${customer.vendorId}`}>
+              <ScoreBreakdown
+                title={`${customer.name} — Score Breakdown`}
+                subtitle={`${customer.vendorId} · computed live from its recorded trade and the current weights.`}
+                score={scoreFor(customer.vendorId)}
+              />
+            </section>
+          ))}
+        </>
       )}
 
       {mode === 'retention' && (

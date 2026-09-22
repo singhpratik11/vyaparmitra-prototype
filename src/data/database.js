@@ -6,6 +6,9 @@ export const tenants = database.tenants;
 export const users = database.users;
 export const masterScore = database.masterScore;
 
+/** Weights and thresholds behind the backend creditworthiness score. */
+export const scoreModel = database.scoreModel;
+
 /** Tenants are the platform's customers; kept under both names for readability. */
 export const customers = tenants;
 
