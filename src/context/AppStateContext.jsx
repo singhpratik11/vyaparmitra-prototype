@@ -136,7 +136,9 @@ export function getPaymentPerformance(records, today = todayIsoDate()) {
  * @property {number} paymentTermsDays
  * @property {'Unverified'|'Verified'} status
  * @property {string|null} verificationSource
- * @property {boolean|null} paidOnTime   Derived from a BANK-CONFIRMED payment only; null otherwise.
+ * @property {boolean|null} paidOnTime   Whether the payment landed on or before its due date.
+ *                                       Seeded records carry it; a logged receipt leaves it null
+ *                                       until a bank match settles the question.
  * @property {'Unpaid'|'Partially Paid'|'Paid'} paymentStatus
  * @property {number} amountPaid
  * @property {string|null} paidDate      ISO date the money actually moved.
@@ -202,10 +204,6 @@ function withPaymentDefaults(record) {
     vendorId: record?.vendorId ?? 'VM-0001',
   };
 
-  // Anything short of a bank match must not carry an on-time flag from the old model.
-  if (next.paymentProof !== PAYMENT_PROOF_CONFIRMED) {
-    next.paidOnTime = null;
-  }
   return next;
 }
 

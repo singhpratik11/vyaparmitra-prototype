@@ -1,12 +1,7 @@
 import React from 'react';
 import { ShieldCheck, Info, TrendingUp, CheckCircle2, Clock } from 'lucide-react';
-import { useAppState, getPaymentPerformance } from '../context/AppStateContext.jsx';
-
-// Prototype thresholds — readiness signals only, never a score we own.
-const VOLUME_TARGET = 500000;
-const VERIFIED_TARGET = 0.6;
-const ON_TIME_TARGET = 0.8;
-const CONCENTRATION_LIMIT = 0.5;
+import { useAppState } from '../context/AppStateContext.jsx';
+import { scoreTenant } from '../data/score.js';
 
 const amountFormatter = new Intl.NumberFormat('en-IN', { maximumFractionDigits: 0 });
 
@@ -44,40 +39,15 @@ const STATUS_STYLES = {
 export default function CreditworthinessCard() {
   const { records } = useAppState();
 
-  const sales = records.filter((record) => record.type === 'Sale');
-  // On-time % comes from corroborated payments only — self-reported ones are excluded.
-  const payment = getPaymentPerformance(records);
+  // Same model the backend scores with, so the band here can never contradict it.
+  // The weighted number itself stays backend-only; this card shows the word alone.
+  const { measured, band } = scoreTenant(records);
   const volume = sumAmounts(records);
-  const salesValue = sumAmounts(sales);
+  const verifiedShare = measured.verifiedPct === null ? null : measured.verifiedPct / 100;
+  const onTimeShare = measured.onTimePct === null ? null : measured.onTimePct / 100;
+  const concentration = measured.concentrationPct === null ? null : measured.concentrationPct / 100;
 
-  const verifiedShare = records.length
-    ? records.filter((record) => record.status === 'Verified').length / records.length
-    : null;
-  const onTimeShare = payment.onTimeShare;
-
-  let concentration = null;
-  if (salesValue > 0) {
-    const byBuyer = new Map();
-    sales.forEach((record) => {
-      byBuyer.set(record.party, (byBuyer.get(record.party) || 0) + (Number(record.amount) || 0));
-    });
-    concentration = Math.max(...byBuyer.values()) / salesValue;
-  }
-
-  // A signal with no data is skipped rather than counted against the business.
-  const signals = [
-    records.length ? volume >= VOLUME_TARGET : null,
-    verifiedShare === null ? null : verifiedShare >= VERIFIED_TARGET,
-    onTimeShare === null ? null : onTimeShare >= ON_TIME_TARGET,
-    concentration === null ? null : concentration <= CONCENTRATION_LIMIT,
-  ];
-  const available = signals.filter((signal) => signal !== null);
-  const met = available.filter(Boolean).length;
-
-  let status = 'Needs attention';
-  if (available.length && met === available.length) status = 'Strong';
-  else if (available.length && met * 2 >= available.length) status = 'Improving';
-
+  const status = records.length === 0 ? 'Needs attention' : band === 'Needs Attention' ? 'Needs attention' : band;
   const statusStyle = STATUS_STYLES[status];
 
   const narrative = records.length
@@ -87,7 +57,7 @@ export default function CreditworthinessCard() {
         concentration === null ? null : `largest buyer ${formatShare(concentration)} of sales`,
       ]
         .filter(Boolean)
-        .join(', ') + `.${onTimeShare === null ? ' No settlement history yet.' : ''}`
+        .join(', ') + `.${onTimeShare === null ? ' No settled payments yet.' : ''}`
     : 'No trade recorded yet — add invoices and GRNs to build a presentable record.';
 
   return (
@@ -141,10 +111,8 @@ export default function CreditworthinessCard() {
             <p className="text-base font-bold text-[#123B78] mt-1">{formatShare(onTimeShare)}</p>
             <p className="text-[10px] text-[#526174]">
               {onTimeShare === null
-                ? 'Insufficient verified payment history'
-                : payment.unverifiedExcluded
-                  ? `${payment.unverifiedExcluded} unverified excluded`
-                  : 'Bank-confirmed payments only'}
+                ? 'No settled payments yet'
+                : `${measured.paidCount} settled payment${measured.paidCount === 1 ? '' : 's'}`}
             </p>
           </div>
 

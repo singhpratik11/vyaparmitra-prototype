@@ -17,6 +17,16 @@ const PAYMENT_PROOF_TAGS = {
 
 function formatTiming(record) {
   const daysLate = getDaysLate(record);
+
+  // The seeded ledger states whether a payment was on time; trust that over the day
+  // count, which can disagree when an invoice was settled before it matured.
+  if (record.paidOnTime === false) {
+    return daysLate !== null && daysLate > 0
+      ? `${daysLate} ${daysLate === 1 ? 'day' : 'days'} late`
+      : 'late';
+  }
+  if (record.paidOnTime === true) return 'on time';
+
   if (daysLate === null) return null;
   return daysLate <= 0 ? 'on time' : `${daysLate} ${daysLate === 1 ? 'day' : 'days'} late`;
 }

@@ -4,153 +4,14 @@ import CreditworthinessCard from './CreditworthinessCard';
 import RecentActivityTable from './RecentActivityTable';
 import { customers, suppliersByVendor, itemsByVendor, buyersByVendor, scoreModel } from '../data/database.js';
 import { useSession } from '../context/SessionContext.jsx';
-import {
-  useAppState,
-  isBankConfirmed,
-  hasMatured,
-  getDaysLate,
-  todayIsoDate,
-} from '../context/AppStateContext.jsx';
-
-const PARAMETERS = [
-  { key: 'onTimePayment', label: 'On-time payment %' },
-  { key: 'verifiedTxns', label: 'Verified transactions %' },
-  { key: 'tradeVolume', label: 'Monthly trade volume' },
-  { key: 'buyerDiversification', label: 'Largest-buyer concentration' },
-];
-
-const DAY_MS = 24 * 60 * 60 * 1000;
-
-function sumAmounts(records) {
-  return records.reduce((total, record) => total + (Number(record.amount) || 0), 0);
-}
-
-/** Months of history the ledger actually covers, so volume is per month, not per seed. */
-function monthsCovered(records, today = todayIsoDate()) {
-  if (!records.length) return 1;
-  const earliest = records.reduce((min, record) => (record.date < min ? record.date : min), records[0].date);
-  const span = (Date.parse(today) - Date.parse(earliest)) / DAY_MS / 30.4;
-  return Math.max(1, span);
-}
-
-/** The four raw parameters, measured off this tenant's own records. */
-function measureTenant(records) {
-  const sales = records.filter((record) => record.type === 'Sale');
-  const salesValue = sumAmounts(sales);
-
-  const confirmed = records.filter((record) => isBankConfirmed(record) && record.paidDate);
-  const matured = confirmed.filter((record) => hasMatured(record));
-  const onTime = matured.filter((record) => (getDaysLate(record) ?? 1) <= 0);
-
-  const byBuyer = new Map();
-  sales.forEach((record) => {
-    byBuyer.set(record.party, (byBuyer.get(record.party) || 0) + (Number(record.amount) || 0));
-  });
-
-  return {
-    recordCount: records.length,
-    onTimePct: matured.length ? (onTime.length / matured.length) * 100 : null,
-    verifiedPct: records.length
-      ? (records.filter((record) => record.status === 'Verified').length / records.length) * 100
-      : null,
-    monthlyVolumeLakh: sumAmounts(records) / monthsCovered(records) / 100000,
-    concentrationPct: salesValue ? (Math.max(...byBuyer.values()) / salesValue) * 100 : null,
-  };
-}
-
-/** Turns the raw parameters into weighted sub-scores using the current model. */
-function scoreTenant(records, weights, thresholds, volumeTargetLakh) {
-  const measured = measureTenant(records);
-
-  const subScores = {
-    onTimePayment: measured.onTimePct ?? 0,
-    verifiedTxns: measured.verifiedPct ?? 0,
-    tradeVolume: Math.min(100, (measured.monthlyVolumeLakh / volumeTargetLakh) * 100),
-    buyerDiversification: measured.concentrationPct === null ? 0 : 100 - measured.concentrationPct,
-  };
-
-  const rows = PARAMETERS.map((parameter) => {
-    const subScore = subScores[parameter.key];
-    const weight = weights[parameter.key];
-    return {
-      ...parameter,
-      subScore,
-      weight,
-      contribution: subScore * weight,
-      value:
-        parameter.key === 'onTimePayment'
-          ? measured.onTimePct === null
-            ? 'No matured bank-confirmed payment'
-            : `${Math.round(measured.onTimePct)}%`
-          : parameter.key === 'verifiedTxns'
-            ? measured.verifiedPct === null
-              ? 'No records'
-              : `${Math.round(measured.verifiedPct)}%`
-            : parameter.key === 'tradeVolume'
-              ? `₹${measured.monthlyVolumeLakh.toFixed(1)}L / month`
-              : measured.concentrationPct === null
-                ? 'No sales'
-                : `${Math.round(measured.concentrationPct)}%`,
-    };
-  });
-
-  const weighted = rows.reduce((total, row) => total + row.contribution, 0);
-  const band =
-    weighted >= thresholds.strong ? 'Strong' : weighted >= thresholds.improving ? 'Improving' : 'Needs Attention';
-
-  return { measured, rows, weighted, band };
-}
+import { useAppState } from '../context/AppStateContext.jsx';
+import { PARAMETERS, scoreTenant } from '../data/score.js';
 
 const BAND_STYLES = {
   Strong: 'bg-emerald-50 text-emerald-700 border-emerald-200',
   Improving: 'bg-blue-50 text-[#1265A8] border-blue-200',
   'Needs Attention': 'bg-amber-50 text-amber-800 border-amber-200',
 };
-
-const RETENTION_MONTHS = ['Month 0', 'Month 1', 'Month 2', 'Month 3'];
-
-/**
- * SEEDED, NOT COMPUTED. A cohort is the month an MSME first recorded a VERIFIED
- * transaction (activation, never sign-up), and a cohort member counts as active in
- * month N if it recorded at least one verified transaction that month. The database
- * carries no per-month transaction history, so these figures are simulated: each row
- * is anchored on a real tenant, activating after its serviceStartDate, and `n` counts
- * simulated peers alongside it because a cohort of one can only ever read 0% or 100%.
- * A null cell means that month has not elapsed for that cohort yet.
- */
-const COHORTS = [
-  {
-    activationMonth: 'Apr 2026',
-    vendorId: 'VM-0001',
-    anchor: 'Ramesh Auto Components',
-    size: 4,
-    retention: [100, 50, 50, 25],
-  },
-  {
-    activationMonth: 'May 2026',
-    vendorId: 'VM-0003',
-    anchor: 'Deccan Pipes & Fittings',
-    size: 3,
-    retention: [100, 67, 33, 33],
-  },
-  {
-    activationMonth: 'Jun 2026',
-    vendorId: 'VM-0002',
-    anchor: 'Shakti Textiles',
-    size: 3,
-    retention: [100, 100, 67, null],
-  },
-];
-
-/** True when this cohort's Month 1 beats every cohort that activated before it. */
-function isMonthOneImprovement(index) {
-  const value = COHORTS[index].retention[1];
-  if (value === null || index === 0) return false;
-  return COHORTS.slice(0, index).every((earlier) => {
-    const previous = earlier.retention[1];
-    return previous === null || value > previous;
-  });
-}
 
 const amountFormatter = new Intl.NumberFormat('en-IN', { maximumFractionDigits: 0 });
 
@@ -711,7 +572,7 @@ export default function BackendPage({ onTriggerComingSoon }) {
                             {measured.verifiedPct === null ? '—' : `${Math.round(measured.verifiedPct)}%`}
                           </td>
                           <td className="py-3.5 px-3 text-right font-mono text-xs md:text-sm text-[#172033]">
-                            {measured.monthlyVolumeLakh.toFixed(1)}
+                            {measured.tradeVolumeLakh.toFixed(1)}
                           </td>
                           <td className="py-3.5 px-3 text-right font-mono text-xs md:text-sm text-[#172033]">
                             {measured.concentrationPct === null
