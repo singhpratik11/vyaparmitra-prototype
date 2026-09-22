@@ -11,6 +11,51 @@ const BAND_STYLES = {
   'Needs Attention': 'bg-amber-50 text-amber-800 border-amber-200',
 };
 
+const RETENTION_MONTHS = ['Month 0', 'Month 1', 'Month 2', 'Month 3'];
+
+/**
+ * SEEDED, NOT COMPUTED. A cohort is the month an MSME first recorded a VERIFIED
+ * transaction (activation, never sign-up), and a cohort member counts as active in
+ * month N if it recorded at least one verified transaction that month. The database
+ * carries no per-month transaction history, so these figures are simulated: each row
+ * is anchored on a real tenant, activating after its serviceStartDate, and `n` counts
+ * simulated peers alongside it because a cohort of one can only ever read 0% or 100%.
+ * A null cell means that month has not elapsed for that cohort yet.
+ */
+const COHORTS = [
+  {
+    activationMonth: 'Apr 2026',
+    vendorId: 'VM-0001',
+    anchor: 'Ramesh Auto Components',
+    size: 4,
+    retention: [100, 50, 50, 25],
+  },
+  {
+    activationMonth: 'May 2026',
+    vendorId: 'VM-0003',
+    anchor: 'Deccan Pipes & Fittings',
+    size: 3,
+    retention: [100, 67, 33, 33],
+  },
+  {
+    activationMonth: 'Jun 2026',
+    vendorId: 'VM-0002',
+    anchor: 'Shakti Textiles',
+    size: 3,
+    retention: [100, 100, 67, null],
+  },
+];
+
+/** True when this cohort's Month 1 beats every cohort that activated before it. */
+function isMonthOneImprovement(index) {
+  const value = COHORTS[index].retention[1];
+  if (value === null || index === 0) return false;
+  return COHORTS.slice(0, index).every((earlier) => {
+    const previous = earlier.retention[1];
+    return previous === null || value > previous;
+  });
+}
+
 const amountFormatter = new Intl.NumberFormat('en-IN', { maximumFractionDigits: 0 });
 
 function formatPct(value) {
@@ -75,6 +120,7 @@ export default function BackendPage({ onTriggerComingSoon }) {
           {[
             { id: 'customer', label: 'Select a customer' },
             { id: 'global', label: 'Global data' },
+            { id: 'retention', label: 'Retention' },
           ].map((option) => (
             <button
               key={option.id}
@@ -370,6 +416,97 @@ export default function BackendPage({ onTriggerComingSoon }) {
             <div className="mt-4 pt-3 border-t border-slate-100 flex flex-col sm:flex-row items-center justify-between text-xs text-[#526174]">
               <span>Showing {masterScore.length} customers</span>
               <span className="mt-2 sm:mt-0">Prototype — scores are seeded demo values</span>
+            </div>
+          </div>
+        </section>
+      )}
+
+      {mode === 'retention' && (
+        <section aria-label="Cohort Retention">
+          <div className="bg-white rounded-2xl border border-slate-200/90 p-6 md:p-7 shadow-xs">
+            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 pb-5 border-b border-slate-100">
+              <div>
+                <div className="flex items-center gap-2">
+                  <h3 className="text-xl font-bold text-[#172033] tracking-tight">
+                    Cohort Retention
+                  </h3>
+                  <span className="text-[10px] font-semibold uppercase tracking-wider bg-slate-100 text-[#526174] px-2 py-0.5 rounded">
+                    Backend model
+                  </span>
+                </div>
+                <p className="text-xs md:text-sm text-[#526174] mt-0.5">
+                  A cohort is the month an MSME first recorded a <strong>verified</strong> transaction —
+                  activation, not sign-up. Active in month N means at least one verified transaction that month.
+                </p>
+              </div>
+
+              <span className="inline-flex items-center gap-1.5 px-3 py-1 bg-amber-50 border border-amber-200 text-amber-800 rounded-full text-xs font-semibold self-start sm:self-auto">
+                <Lock className="w-3.5 h-3.5" />
+                <span>Simulated — directional only, not live retention (small n)</span>
+              </span>
+            </div>
+
+            <div className="overflow-x-auto mt-4">
+              <table className="w-full text-left text-sm border-collapse">
+                <thead>
+                  <tr className="border-b border-slate-100 text-[11px] font-bold text-[#526174] uppercase tracking-wider">
+                    <th className="py-3 px-3">Activation Month</th>
+                    <th className="py-3 px-3">Anchor Tenant</th>
+                    <th className="py-3 px-3 text-right">Cohort (n)</th>
+                    {RETENTION_MONTHS.map((month) => (
+                      <th key={month} className="py-3 px-3 text-right">
+                        {month}
+                      </th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-100">
+                  {COHORTS.map((cohort, index) => (
+                    <tr key={cohort.activationMonth} className="hover:bg-[#F6F9FB]/80 transition-colors">
+                      <td className="py-3.5 px-3 font-semibold text-[#172033] text-xs md:text-sm whitespace-nowrap">
+                        {cohort.activationMonth}
+                      </td>
+                      <td className="py-3.5 px-3 text-xs md:text-sm text-[#526174]">
+                        {cohort.anchor}{' '}
+                        <span className="font-mono text-[#526174]">({cohort.vendorId})</span>
+                      </td>
+                      <td className="py-3.5 px-3 text-right font-mono text-xs md:text-sm text-[#172033]">
+                        {cohort.size}
+                      </td>
+                      {cohort.retention.map((value, monthIndex) => {
+                        const highlight = monthIndex === 1 && isMonthOneImprovement(index);
+                        return (
+                          <td
+                            key={RETENTION_MONTHS[monthIndex]}
+                            className="py-3.5 px-3 text-right whitespace-nowrap"
+                          >
+                            {value === null ? (
+                              <span className="font-mono text-xs md:text-sm text-[#526174]">—</span>
+                            ) : (
+                              <span
+                                className={`inline-block px-2.5 py-0.5 rounded-full font-mono text-xs md:text-sm ${
+                                  highlight
+                                    ? 'bg-[#E8F7F3] text-[#123B78] font-bold'
+                                    : 'text-[#172033]'
+                                }`}
+                              >
+                                {value}%
+                              </span>
+                            )}
+                          </td>
+                        );
+                      })}
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+
+            <div className="mt-4 pt-3 border-t border-slate-100 flex flex-col sm:flex-row items-center justify-between text-xs text-[#526174]">
+              <span>
+                Mint Month 1 = that cohort held on better than every cohort before it — read down the column.
+              </span>
+              <span className="mt-2 sm:mt-0">— = month not elapsed for that cohort yet</span>
             </div>
           </div>
         </section>
