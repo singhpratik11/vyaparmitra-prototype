@@ -13,9 +13,12 @@ import {
 } from 'lucide-react';
 import BusinessFlowVisual from './BusinessFlowVisual';
 import { useSession } from '../context/SessionContext.jsx';
+import { canAccess } from '../data/roles.js';
 
 export default function HomePage({ onNavigate, onTriggerComingSoon }) {
-  const { customer } = useSession();
+  const { customer, role } = useSession();
+  const mayInvoice = canAccess(role, 'create-invoice');
+  const mayReceive = canAccess(role, 'create-grn');
 
   return (
     <div className="space-y-8 max-w-6xl mx-auto">
@@ -73,7 +76,8 @@ export default function HomePage({ onNavigate, onTriggerComingSoon }) {
         </div>
       </div>
 
-      {/* 2. The Two Core Daily Actions (Clean, Prominent, Uncluttered) */}
+      {/* 2. The Two Core Daily Actions — only the ones this role may perform */}
+      {(mayInvoice || mayReceive) && (
       <div>
         <div className="mb-4">
           <h2 className="text-lg font-bold text-[#172033] tracking-tight">
@@ -86,6 +90,7 @@ export default function HomePage({ onNavigate, onTriggerComingSoon }) {
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
           {/* Action 1: Create Invoice */}
+          {mayInvoice && (
           <div className="bg-white rounded-2xl border border-slate-200/90 p-6 shadow-xs hover:shadow-card hover:border-[#123B78]/40 transition-all group flex flex-col justify-between">
             <div>
               <div className="flex items-center justify-between mb-4">
@@ -116,8 +121,10 @@ export default function HomePage({ onNavigate, onTriggerComingSoon }) {
               </button>
             </div>
           </div>
+          )}
 
           {/* Action 2: Create GRN */}
+          {mayReceive && (
           <div className="bg-white rounded-2xl border border-slate-200/90 p-6 shadow-xs hover:shadow-card hover:border-[#10B8A5]/40 transition-all group flex flex-col justify-between">
             <div>
               <div className="flex items-center justify-between mb-4">
@@ -148,8 +155,10 @@ export default function HomePage({ onNavigate, onTriggerComingSoon }) {
               </button>
             </div>
           </div>
+          )}
         </div>
       </div>
+      )}
 
       {/* 3. Business Dashboard Gateway Card */}
       <div className="bg-gradient-to-r from-[#123B78] to-[#1265A8] rounded-2xl p-6 md:p-7 text-white shadow-card flex flex-col md:flex-row md:items-center md:justify-between gap-6">

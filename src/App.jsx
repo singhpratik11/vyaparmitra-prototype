@@ -13,17 +13,8 @@ import LoginPage from './components/LoginPage';
 import BackendPage from './components/BackendPage';
 import { X } from 'lucide-react';
 import { useSession } from './context/SessionContext.jsx';
-
 // Simulated segregation of duties — no real auth, no server check.
-// Role names match the Role column of the workbook's Users sheet.
-const ROLE_VIEWS = {
-  Owner: ['home', 'dashboard', 'worklist', 'create-invoice', 'create-grn', 'audit'],
-  'Billing Clerk': ['create-invoice'],
-  'Warehouse Clerk': ['create-grn', 'worklist'],
-  Finance: ['home', 'dashboard', 'worklist', 'create-invoice', 'create-grn'],
-  Lender: ['profile'],
-  'Backend (global access)': ['backend'],
-};
+import { ROLE_VIEWS, viewsFor } from './data/roles.js';
 
 export default function App() {
   const { session, role, tenantUsers, isAdmin, signOut, setViewAsRole, scopeVendorId } = useSession();
@@ -43,7 +34,7 @@ export default function App() {
     { id: 'LENDER', label: 'Lending partner · Lender', role: 'Lender' },
   ];
 
-  const allowedViews = ROLE_VIEWS[role] || [];
+  const allowedViews = viewsFor(role);
 
   // The backend console is wide, so it opens with the sidebar collapsed. Expanding
   // it afterwards sticks — this only runs when someone signs in.
@@ -63,7 +54,7 @@ export default function App() {
     if (!nextActor) return;
     setActorId(nextActor.id);
     setViewAsRole(nextActor.role);
-    setCurrentView((ROLE_VIEWS[nextActor.role] || [])[0]);
+    setCurrentView(viewsFor(nextActor.role)[0]);
     setIsMobileNavOpen(false);
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };

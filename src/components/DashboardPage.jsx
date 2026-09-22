@@ -6,6 +6,8 @@ import ShareProfileModal from './ShareProfileModal';
 import ReadinessActions from './ReadinessActions';
 import { ArrowLeft, FilePlus2, PackagePlus, Sparkles, ShieldCheck } from 'lucide-react';
 import { useAppState } from '../context/AppStateContext.jsx';
+import { useSession } from '../context/SessionContext.jsx';
+import { canAccess } from '../data/roles.js';
 
 const DECISION_STYLES = {
   Approve: 'bg-[#E8F7F3] text-[#123B78] border-[#10B8A5]/30',
@@ -15,6 +17,7 @@ const DECISION_STYLES = {
 
 export default function DashboardPage({ onNavigate, onTriggerComingSoon }) {
   const { profileShared, lenderDecision, setProfileShared } = useAppState();
+  const { role } = useSession();
   const [isShareOpen, setIsShareOpen] = useState(false);
 
   return (
@@ -61,23 +64,27 @@ export default function DashboardPage({ onNavigate, onTriggerComingSoon }) {
 
         {/* Quick Action Shortcuts */}
         <div className="flex items-center gap-2.5 self-start sm:self-auto">
-          <button
-            type="button"
-            onClick={() => onNavigate('create-invoice')}
-            className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-white border border-slate-200/80 text-[#123B78] hover:bg-slate-50 text-xs font-bold shadow-2xs transition-colors"
-          >
-            <FilePlus2 className="w-4 h-4 text-[#10B8A5]" />
-            <span>+ Invoice</span>
-          </button>
+          {canAccess(role, 'create-invoice') && (
+            <button
+              type="button"
+              onClick={() => onNavigate('create-invoice')}
+              className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-white border border-slate-200/80 text-[#123B78] hover:bg-slate-50 text-xs font-bold shadow-2xs transition-colors"
+            >
+              <FilePlus2 className="w-4 h-4 text-[#10B8A5]" />
+              <span>+ Invoice</span>
+            </button>
+          )}
 
-          <button
-            type="button"
-            onClick={() => onNavigate('create-grn')}
-            className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-white border border-slate-200/80 text-[#123B78] hover:bg-slate-50 text-xs font-bold shadow-2xs transition-colors"
-          >
-            <PackagePlus className="w-4 h-4 text-[#1265A8]" />
-            <span>+ GRN</span>
-          </button>
+          {canAccess(role, 'create-grn') && (
+            <button
+              type="button"
+              onClick={() => onNavigate('create-grn')}
+              className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-white border border-slate-200/80 text-[#123B78] hover:bg-slate-50 text-xs font-bold shadow-2xs transition-colors"
+            >
+              <PackagePlus className="w-4 h-4 text-[#1265A8]" />
+              <span>+ GRN</span>
+            </button>
+          )}
 
           <button
             type="button"
