@@ -3,6 +3,7 @@ import CreditworthinessCard from './CreditworthinessCard';
 import BusinessSnapshot from './BusinessSnapshot';
 import RecentActivityTable from './RecentActivityTable';
 import ShareProfileModal from './ShareProfileModal';
+import ReadinessActions from './ReadinessActions';
 import { ArrowLeft, FilePlus2, PackagePlus, Sparkles, ShieldCheck } from 'lucide-react';
 import { useAppState } from '../context/AppStateContext.jsx';
 
@@ -94,12 +95,17 @@ export default function DashboardPage({ onNavigate, onTriggerComingSoon }) {
         <CreditworthinessCard />
       </section>
 
-      {/* 2. Business Snapshot Metrics */}
+      {/* 2. Act on the readiness profile */}
+      <section aria-label="Readiness Actions">
+        <ReadinessActions onShare={() => setIsShareOpen(true)} />
+      </section>
+
+      {/* 3. Business Snapshot Metrics */}
       <section aria-label="Business Metrics Snapshot">
         <BusinessSnapshot />
       </section>
 
-      {/* 3. Recent Business Activity Ledger */}
+      {/* 4. Recent Business Activity Ledger */}
       <section aria-label="Recent Transactions Activity">
         <RecentActivityTable onTriggerComingSoon={onTriggerComingSoon} />
       </section>

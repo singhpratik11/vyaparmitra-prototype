@@ -2,6 +2,8 @@ import React, { useState } from 'react';
 import { FileText, PackageCheck, ArrowUpRight, ArrowDownLeft, Filter, ExternalLink, ShieldCheck, BadgeCheck, IndianRupee, Landmark } from 'lucide-react';
 import { useAppState, getDaysLate, PAYMENT_PROOF_LOGGED, PAYMENT_PROOF_CONFIRMED } from '../context/AppStateContext.jsx';
 import RecordPaymentModal from './RecordPaymentModal';
+import { openReadinessReport } from './readinessReport.js';
+import { useSession } from '../context/SessionContext.jsx';
 
 const PAYMENT_STATUS_STYLES = {
   Paid: 'bg-[#E8F7F3] text-[#123B78] border-[#10B8A5]/30',
@@ -53,6 +55,7 @@ function formatDate(isoDate) {
 
 export default function RecentActivityTable({ onTriggerComingSoon }) {
   const { records, verifyRecord, recordPayment, bankMatchPayment } = useAppState();
+  const { customer } = useSession();
   const [filter, setFilter] = useState('ALL');
   const [paymentRecordId, setPaymentRecordId] = useState(null);
 
@@ -267,10 +270,10 @@ export default function RecentActivityTable({ onTriggerComingSoon }) {
         <span>Showing {filteredActivities.length} mock ledger entries</span>
         <span>Prototype — verification &amp; bank matching simulated</span>
         <button
-          onClick={onTriggerComingSoon}
+          onClick={() => openReadinessReport(customer, records)}
           className="text-xs font-semibold text-[#1265A8] hover:text-[#123B78] mt-2 sm:mt-0"
         >
-          Export Ledger (Coming Soon) →
+          Download report →
         </button>
       </div>
 
