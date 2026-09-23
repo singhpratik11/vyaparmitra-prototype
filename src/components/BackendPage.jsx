@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useRef, useState } from 'react';
 import { ArrowLeft, Building2, Globe2, Lock, RotateCcw } from 'lucide-react';
 import CreditworthinessCard from './CreditworthinessCard';
 import RecentActivityTable from './RecentActivityTable';
@@ -88,14 +88,31 @@ function ScoreBreakdown({ title, subtitle, score }) {
 
 export default function BackendPage({ onTriggerComingSoon }) {
   const { selectedCustomerId, selectCustomer, session } = useSession();
-  const { allRecords, resetDemoData, mastersFor } = useAppState();
+  const { allRecords, resetDemoData, mastersFor, scoreSettings, setScoreSetting, resetScoreSettings } =
+    useAppState();
   const [mode, setMode] = useState('customer');
   const [query, setQuery] = useState('');
-  const [weights, setWeights] = useState(scoreModel.weights);
-  const [thresholds, setThresholds] = useState({
-    strong: scoreModel.strongThreshold,
-    improving: scoreModel.improvingThreshold,
-  });
+  const { weights, thresholds } = scoreSettings;
+
+  // What a field held when it gained focus, so one settled edit writes one audit entry.
+  const editStart = useRef({});
+
+  // Captured the first time a field moves, whether or not a focus event reached us.
+  const beginEdit = (kind, key) => {
+    const slot = `${kind}.${key}`;
+    if (editStart.current[slot] === undefined) editStart.current[slot] = scoreSettings[kind][key];
+  };
+
+  const changeSetting = (kind, key, value) => {
+    beginEdit(kind, key);
+    setScoreSetting(kind, key, value, { audit: false });
+  };
+
+  const commitEdit = (kind, key, value) => {
+    const from = editStart.current[`${kind}.${key}`];
+    setScoreSetting(kind, key, value, { from });
+    delete editStart.current[`${kind}.${key}`];
+  };
 
   const weightTotalPct = Math.round(
     PARAMETERS.reduce((total, parameter) => total + (Number(weights[parameter.key]) || 0), 0) * 100
@@ -403,8 +420,8 @@ export default function BackendPage({ onTriggerComingSoon }) {
                 <div>
                   <h3 className="text-xl font-bold text-[#172033] tracking-tight">Score Model</h3>
                   <p className="text-xs md:text-sm text-[#526174] mt-0.5">
-                    Edit a weight or threshold and every plant re-scores immediately. Session only — the
-                    JSON defaults come back on reload.
+                    Edit a weight or threshold and every plant re-scores immediately — readiness cards,
+                    breakdowns, reports and loan options all follow. Each change is written to the audit log.
                   </p>
                 </div>
 
@@ -436,11 +453,12 @@ export default function BackendPage({ onTriggerComingSoon }) {
                       max="100"
                       step="1"
                       value={Math.round(weights[parameter.key] * 100)}
+                      onFocus={() => beginEdit('weights', parameter.key)}
                       onChange={(e) =>
-                        setWeights({
-                          ...weights,
-                          [parameter.key]: (Number(e.target.value) || 0) / 100,
-                        })
+                        changeSetting('weights', parameter.key, (Number(e.target.value) || 0) / 100)
+                      }
+                      onBlur={(e) =>
+                        commitEdit('weights', parameter.key, (Number(e.target.value) || 0) / 100)
                       }
                       className="w-full px-3 py-2 rounded-xl border border-slate-200 bg-white text-[#172033] text-sm font-mono"
                     />
@@ -459,9 +477,9 @@ export default function BackendPage({ onTriggerComingSoon }) {
                     min="0"
                     max="100"
                     value={thresholds.strong}
-                    onChange={(e) =>
-                      setThresholds({ ...thresholds, strong: Number(e.target.value) || 0 })
-                    }
+                    onFocus={() => beginEdit('thresholds', 'strong')}
+                    onChange={(e) => changeSetting('thresholds', 'strong', Number(e.target.value) || 0)}
+                    onBlur={(e) => commitEdit('thresholds', 'strong', Number(e.target.value) || 0)}
                     className="w-full px-3 py-2 rounded-xl border border-slate-200 bg-white text-[#172033] text-sm font-mono"
                   />
                   <p className="text-[10px] text-[#526174] mt-1.5">Score at or above = Strong</p>
@@ -476,9 +494,9 @@ export default function BackendPage({ onTriggerComingSoon }) {
                     min="0"
                     max="100"
                     value={thresholds.improving}
-                    onChange={(e) =>
-                      setThresholds({ ...thresholds, improving: Number(e.target.value) || 0 })
-                    }
+                    onFocus={() => beginEdit('thresholds', 'improving')}
+                    onChange={(e) => changeSetting('thresholds', 'improving', Number(e.target.value) || 0)}
+                    onBlur={(e) => commitEdit('thresholds', 'improving', Number(e.target.value) || 0)}
                     className="w-full px-3 py-2 rounded-xl border border-slate-200 bg-white text-[#172033] text-sm font-mono"
                   />
                   <p className="text-[10px] text-[#526174] mt-1.5">Score at or above = Improving</p>
@@ -498,13 +516,7 @@ export default function BackendPage({ onTriggerComingSoon }) {
                   <label className="block text-xs font-semibold text-[#526174] mb-2">Reset</label>
                   <button
                     type="button"
-                    onClick={() => {
-                      setWeights(scoreModel.weights);
-                      setThresholds({
-                        strong: scoreModel.strongThreshold,
-                        improving: scoreModel.improvingThreshold,
-                      });
-                    }}
+                    onClick={resetScoreSettings}
                     className="w-full px-3 py-2 rounded-xl border border-slate-200 bg-white text-[#526174] hover:bg-slate-50 text-xs font-semibold transition-colors"
                   >
                     Restore JSON defaults

@@ -54,7 +54,7 @@ function formatDate(isoDate) {
 }
 
 export default function RecentActivityTable({ onTriggerComingSoon }) {
-  const { records, verifyRecord, recordPayment, bankMatchPayment } = useAppState();
+  const { records, verifyRecord, recordPayment, bankMatchPayment, scoreSettings } = useAppState();
   const { customer } = useSession();
   const [filter, setFilter] = useState('ALL');
   const [paymentRecordId, setPaymentRecordId] = useState(null);
@@ -270,7 +270,7 @@ export default function RecentActivityTable({ onTriggerComingSoon }) {
         <span>Showing {filteredActivities.length} mock ledger entries</span>
         <span>Prototype — verification &amp; bank matching simulated</span>
         <button
-          onClick={() => openReadinessReport(customer, records)}
+          onClick={() => openReadinessReport(customer, records, scoreSettings)}
           className="text-xs font-semibold text-[#1265A8] hover:text-[#123B78] mt-2 sm:mt-0"
         >
           Download report →

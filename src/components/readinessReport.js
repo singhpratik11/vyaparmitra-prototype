@@ -44,9 +44,14 @@ function bandColour(band) {
  * Builds and opens the report for one tenant.
  * @param {object} customer tenant record from the database
  * @param {Array} records that tenant's ledger
+ * @param {object} scoreSettings live weights and thresholds from the store
  */
-export function openReadinessReport(customer, records) {
-  const { measured, rows, weighted, band } = scoreTenant(records);
+export function openReadinessReport(customer, records, scoreSettings) {
+  const { measured, rows, weighted, band } = scoreTenant(
+    records,
+    scoreSettings?.weights,
+    scoreSettings?.thresholds
+  );
 
   const verified = records.filter((record) => record.status === 'Verified');
   const sales = records.filter((record) => record.type === 'Sale');

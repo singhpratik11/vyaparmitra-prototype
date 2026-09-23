@@ -40,17 +40,17 @@ const BAND_NOTE = {
 };
 
 export default function ReadinessActions({ onShare }) {
-  const { records } = useAppState();
+  const { records, scoreSettings } = useAppState();
   const { customer } = useSession();
   const [showOffers, setShowOffers] = useState(false);
   const [reportBlocked, setReportBlocked] = useState(false);
 
-  const { measured, band } = scoreTenant(records);
+  const { measured, band } = scoreTenant(records, scoreSettings.weights, scoreSettings.thresholds);
   const monthlyVolume = measured.tradeVolumeLakh * 100000;
   const offers = OFFER_SHAPES[band] || OFFER_SHAPES['Needs Attention'];
 
   const handleDownload = () => {
-    const opened = openReadinessReport(customer, records);
+    const opened = openReadinessReport(customer, records, scoreSettings);
     setReportBlocked(!opened);
   };
 

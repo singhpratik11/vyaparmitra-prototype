@@ -37,11 +37,11 @@ const STATUS_STYLES = {
 };
 
 export default function CreditworthinessCard() {
-  const { records } = useAppState();
+  const { records, scoreSettings } = useAppState();
 
   // Same model the backend scores with, so the band here can never contradict it.
   // The weighted number itself stays backend-only; this card shows the word alone.
-  const { measured, band } = scoreTenant(records);
+  const { measured, band } = scoreTenant(records, scoreSettings.weights, scoreSettings.thresholds);
   const volume = sumAmounts(records);
   const verifiedShare = measured.verifiedPct === null ? null : measured.verifiedPct / 100;
   const onTimeShare = measured.onTimePct === null ? null : measured.onTimePct / 100;

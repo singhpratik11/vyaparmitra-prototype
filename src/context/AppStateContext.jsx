@@ -1,5 +1,5 @@
 import React, { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react';
-import { suppliersByVendor, buyersByVendor } from '../data/database.js';
+import { suppliersByVendor, buyersByVendor, scoreModel } from '../data/database.js';
 import { buildSeedRecords, buildSeedAuditLog } from '../data/seed.js';
 import { useSession } from './SessionContext.jsx';
 
@@ -172,8 +172,17 @@ function mergeMasters(seedList, overrides, idKey) {
   ];
 }
 
+/** The scoring model as shipped; the backend team may move it, nobody else. */
+function defaultScoreSettings() {
+  return {
+    weights: { ...scoreModel.weights },
+    thresholds: { strong: scoreModel.strongThreshold, improving: scoreModel.improvingThreshold },
+  };
+}
+
 function freshState() {
   return {
+    scoreSettings: defaultScoreSettings(),
     masters: {},
     auditLog: buildSeedAuditLog(),
     records: buildSeedRecords(),
@@ -202,6 +211,7 @@ function readPersistedState() {
       // Storage written before the audit trail existed starts from the seeded history.
       auditLog: Array.isArray(parsed?.auditLog) ? parsed.auditLog : buildSeedAuditLog(),
       masters: parsed?.masters && typeof parsed.masters === 'object' ? parsed.masters : {},
+      scoreSettings: parsed?.scoreSettings?.weights ? parsed.scoreSettings : defaultScoreSettings(),
       profileShared: Boolean(parsed?.profileShared),
       lenderDecision: parsed?.lenderDecision ?? null,
     };
@@ -406,6 +416,41 @@ export function AppStateProvider({ children }) {
     });
   }, [scopeVendorId, appendAudit]);
 
+  /**
+   * Moves one weight or threshold. Backend-only in practice: the panel that calls this
+   * lives inside the console, which only the backend role can route to.
+   */
+  const setScoreSetting = useCallback((kind, key, value, { audit = true, from } = {}) => {
+    setState((prev) => {
+      const settings = prev.scoreSettings || defaultScoreSettings();
+      // `from` lets the caller audit a settled edit against the value it started at,
+      // so typing "60" logs one entry rather than one per keystroke.
+      const before = from === undefined ? settings[kind][key] : from;
+      const next = { ...settings, [kind]: { ...settings[kind], [key]: value } };
+      if (before === value || !audit) return { ...prev, scoreSettings: next };
+
+      const asText = (raw) => (kind === 'weights' ? `${Math.round(raw * 100)}%` : String(raw));
+      return {
+        ...prev,
+        scoreSettings: next,
+        auditLog: appendAudit(
+          prev,
+          kind === 'weights' ? 'Changed score weight' : 'Changed score threshold',
+          `${key}: ${asText(before)} → ${asText(value)}`
+        ),
+      };
+    });
+  }, [appendAudit]);
+
+  /** Puts every weight and threshold back to the values the JSON ships with. */
+  const resetScoreSettings = useCallback(() => {
+    setState((prev) => ({
+      ...prev,
+      scoreSettings: defaultScoreSettings(),
+      auditLog: appendAudit(prev, 'Reset score weights', 'Back to JSON defaults'),
+    }));
+  }, [appendAudit]);
+
   /** Restores the seeded demo ledger and clears any sharing or lender decision. */
   const resetDemoData = useCallback(() => {
     // The seeded history comes back with the seeded ledger, plus a note of the reset.
@@ -451,6 +496,9 @@ export function AppStateProvider({ children }) {
       buyers: mastersFor(scopeVendorId).buyers,
       mastersFor,
       upsertMaster,
+      scoreSettings: state.scoreSettings || defaultScoreSettings(),
+      setScoreSetting,
+      resetScoreSettings,
       profileShared: state.profileShared,
       lenderDecision: state.lenderDecision,
       addRecord,
@@ -469,6 +517,9 @@ export function AppStateProvider({ children }) {
       scopeVendorId,
       mastersFor,
       upsertMaster,
+      setScoreSetting,
+      resetScoreSettings,
+      state.scoreSettings,
       state.profileShared,
       state.lenderDecision,
       addRecord,
