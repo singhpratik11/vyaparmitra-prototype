@@ -3,6 +3,7 @@ import { ArrowLeft, Clock, IndianRupee } from 'lucide-react';
 import RecordPaymentModal from './RecordPaymentModal';
 import {
   useAppState,
+  isPurchaseRecord,
   isUnpaid,
   getDueDate,
   getDueBucket,
@@ -163,7 +164,7 @@ export default function WorklistPage({ role, onNavigate }) {
 
   const openItems = records.filter((record) => isUnpaid(record) && getDueBucket(record));
   const receivables = openItems.filter((record) => record.type === 'Sale');
-  const payables = openItems.filter((record) => record.type === 'Purchase');
+  const payables = openItems.filter((record) => isPurchaseRecord(record));
 
   return (
     <div className="space-y-6 md:space-y-8 max-w-7xl mx-auto">

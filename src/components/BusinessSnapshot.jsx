@@ -1,6 +1,6 @@
 import React from 'react';
 import { IndianRupee, TrendingUp, Clock, FileCheck2, ShoppingBag } from 'lucide-react';
-import { useAppState } from '../context/AppStateContext.jsx';
+import { useAppState, isPurchaseRecord } from '../context/AppStateContext.jsx';
 
 const amountFormatter = new Intl.NumberFormat('en-IN', { maximumFractionDigits: 0 });
 
@@ -17,7 +17,7 @@ export default function BusinessSnapshot() {
   const { records } = useAppState();
 
   const sales = records.filter((record) => record.type === 'Sale');
-  const purchases = records.filter((record) => record.type === 'Purchase');
+  const purchases = records.filter((record) => isPurchaseRecord(record));
   const outstandingSales = sales.filter((record) => record.paidOnTime === null || record.paidOnTime === undefined);
 
   const stats = [

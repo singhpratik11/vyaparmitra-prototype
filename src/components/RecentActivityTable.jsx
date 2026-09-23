@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { FileText, PackageCheck, ArrowUpRight, ArrowDownLeft, Filter, ExternalLink, ShieldCheck, BadgeCheck, IndianRupee, Landmark } from 'lucide-react';
-import { useAppState, getDaysLate, PAYMENT_PROOF_LOGGED, PAYMENT_PROOF_CONFIRMED } from '../context/AppStateContext.jsx';
+import { useAppState, getDaysLate, isPurchaseRecord, PAYMENT_PROOF_LOGGED, PAYMENT_PROOF_CONFIRMED } from '../context/AppStateContext.jsx';
 import RecordPaymentModal from './RecordPaymentModal';
 import { openReadinessReport } from './readinessReport.js';
 import { useSession } from '../context/SessionContext.jsx';
@@ -71,7 +71,7 @@ export default function RecentActivityTable({ onTriggerComingSoon }) {
 
   const filteredActivities = records.filter((record) => {
     if (filter === 'INVOICE') return record.type === 'Sale';
-    if (filter === 'GRN') return record.type === 'Purchase';
+    if (filter === 'GRN') return isPurchaseRecord(record);
     return true;
   });
 

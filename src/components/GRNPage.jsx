@@ -31,7 +31,24 @@ export default function GRNPage({ onBackToDashboard, onTriggerComingSoon }) {
   const [lines, setLines] = useState(() => openingLines(activeItems));
   const [savedMessage, setSavedMessage] = useState('');
 
+  // Direct = goods from the item master. Indirect = consumables, MRO and other spend that
+  // was never catalogued, so it is typed in rather than picked.
+  const [purchaseKind, setPurchaseKind] = useState('Direct');
+  const [itemDescription, setItemDescription] = useState('');
+  const [indirectAmount, setIndirectAmount] = useState('');
+  const [paymentTermsDays, setPaymentTermsDays] = useState(
+    String(activeSuppliers[0]?.paymentTermsDays ?? '')
+  );
+
+  const isIndirect = purchaseKind === 'Indirect';
   const selectedSupplier = activeSuppliers.find((item) => item.supplierId === supplierId) || null;
+
+  /** Picking a supplier carries its agreed terms across, the way the invoice form does. */
+  const handleSupplierChange = (nextSupplierId) => {
+    setSupplierId(nextSupplierId);
+    const nextSupplier = activeSuppliers.find((item) => item.supplierId === nextSupplierId);
+    setPaymentTermsDays(nextSupplier ? String(nextSupplier.paymentTermsDays) : '');
+  };
 
   // A GRN has never carried GST in this prototype; the receipt value is the sum of its lines.
   const receiptTotal = documentTotal(lines);
@@ -53,19 +70,34 @@ export default function GRNPage({ onBackToDashboard, onTriggerComingSoon }) {
   const handleSubmit = (e) => {
     e.preventDefault();
 
-    const record = addRecord({
-      type: 'Purchase',
-      party: selectedSupplier ? selectedSupplier.name : '',
-      amount: receiptTotal,
-      date: grnDate,
-      status: 'Unverified',
-      lineItems: toStoredLines(lines, activeItems),
-    });
+    const record = isIndirect
+      ? addRecord({
+          type: 'Indirect',
+          party: selectedSupplier ? selectedSupplier.name : '',
+          amount: Number(indirectAmount) || 0,
+          date: grnDate,
+          paymentTermsDays: Number(paymentTermsDays),
+          status: 'Unverified',
+          itemDescription: itemDescription.trim(),
+        })
+      : addRecord({
+          type: 'Purchase',
+          party: selectedSupplier ? selectedSupplier.name : '',
+          amount: receiptTotal,
+          date: grnDate,
+          status: 'Unverified',
+          lineItems: toStoredLines(lines, activeItems),
+        });
 
-    setSavedMessage(`Purchase recorded — ${record.id}`);
+    setSavedMessage(
+      `${isIndirect ? 'Indirect purchase' : 'Purchase'} recorded — ${record.id}`
+    );
     setSupplierId('');
     setGrnDate('');
     setLines([blankLine()]);
+    setItemDescription('');
+    setIndirectAmount('');
+    setPaymentTermsDays('');
   };
 
   return (
@@ -119,6 +151,37 @@ export default function GRNPage({ onBackToDashboard, onTriggerComingSoon }) {
 
         {/* Visual GRN Form Layout (Disabled/Demonstration) */}
         <form onSubmit={handleSubmit} className="mt-8 space-y-6">
+          {/* Direct goods vs indirect spend — the rest of the form is the same either way. */}
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+            <div>
+              <h3 className="text-xs font-bold uppercase tracking-wider text-[#526174]">
+                Purchase Type
+              </h3>
+              <p className="text-xs text-[#526174] mt-0.5">
+                {isIndirect
+                  ? 'Consumables, MRO and other spend that is not a catalogued part.'
+                  : 'Goods received against your item master.'}
+              </p>
+            </div>
+
+            <div className="flex items-center gap-1.5 p-1 bg-[#F6F9FB] rounded-xl border border-slate-200/70 self-start sm:self-auto">
+              {['Direct', 'Indirect'].map((kind) => (
+                <button
+                  key={kind}
+                  type="button"
+                  onClick={() => setPurchaseKind(kind)}
+                  className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all ${
+                    purchaseKind === kind
+                      ? 'bg-white text-[#123B78] shadow-xs border border-slate-200/50'
+                      : 'text-[#526174] hover:text-[#172033]'
+                  }`}
+                >
+                  {kind}
+                </button>
+              ))}
+            </div>
+          </div>
+
           <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
             {/* Supplier Name */}
             <div>
@@ -128,7 +191,7 @@ export default function GRNPage({ onBackToDashboard, onTriggerComingSoon }) {
               <select
                 required
                 value={supplierId}
-                onChange={(e) => setSupplierId(e.target.value)}
+                onChange={(e) => handleSupplierChange(e.target.value)}
                 className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 bg-slate-50/70 text-[#172033] text-sm font-medium"
               >
                 <option value="">Select supplier</option>
@@ -168,47 +231,110 @@ export default function GRNPage({ onBackToDashboard, onTriggerComingSoon }) {
               />
             </div>
 
-            {/* Reference (PO / Delivery Challan) */}
-            <div>
-              <label className="block text-xs font-bold text-[#172033] uppercase tracking-wider mb-2">
-                Reference (PO / Challan No.)
-              </label>
-              <input
-                type="text"
-                disabled
-                defaultValue="PO-2026-881 / Challan #DC-442"
-                className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 bg-slate-50/70 text-[#172033] text-sm cursor-not-allowed"
-              />
-            </div>
+            {/* Reference on a goods receipt; agreed terms on an indirect purchase */}
+            {isIndirect ? (
+              <div>
+                <label className="block text-xs font-bold text-[#172033] uppercase tracking-wider mb-2">
+                  Payment Terms
+                </label>
+                <input
+                  type="number"
+                  min="0"
+                  value={paymentTermsDays}
+                  onChange={(e) => setPaymentTermsDays(e.target.value)}
+                  className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 bg-slate-50/70 text-[#172033] text-sm"
+                />
+              </div>
+            ) : (
+              <div>
+                <label className="block text-xs font-bold text-[#172033] uppercase tracking-wider mb-2">
+                  Reference (PO / Challan No.)
+                </label>
+                <input
+                  type="text"
+                  disabled
+                  defaultValue="PO-2026-881 / Challan #DC-442"
+                  className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 bg-slate-50/70 text-[#172033] text-sm cursor-not-allowed"
+                />
+              </div>
+            )}
           </div>
 
           {/* Product & Quantity Section */}
           <div className="pt-4 border-t border-slate-100">
             <h3 className="text-xs font-bold uppercase tracking-wider text-[#526174] mb-4">
-              Material Receipt Details
+              {isIndirect ? 'Indirect Purchase Details' : 'Material Receipt Details'}
             </h3>
 
-            <LineItemsTable
-              items={activeItems}
-              lines={lines}
-              onChange={setLines}
-              addLabel="Add material"
-              onScan={handleScan}
-              scanLabel="Scan barcode"
-            />
+            {isIndirect ? (
+              <div className="grid grid-cols-1 md:grid-cols-12 gap-4 items-end">
+                <div className="md:col-span-8">
+                  <label className="block text-xs font-semibold text-[#172033] mb-1.5">
+                    Item Description <span className="text-red-500">*</span>
+                  </label>
+                  <input
+                    type="text"
+                    required
+                    value={itemDescription}
+                    onChange={(e) => setItemDescription(e.target.value)}
+                    placeholder="e.g. machine coolant, packaging tape"
+                    className="w-full px-3 py-2 rounded-xl border border-slate-200 bg-slate-50/70 text-[#172033] text-sm"
+                  />
+                </div>
+
+                <div className="md:col-span-4">
+                  <label className="block text-xs font-semibold text-[#172033] mb-1.5">
+                    Amount (₹) <span className="text-red-500">*</span>
+                  </label>
+                  <input
+                    type="number"
+                    required
+                    min="0"
+                    step="0.01"
+                    value={indirectAmount}
+                    onChange={(e) => setIndirectAmount(e.target.value)}
+                    className="w-full px-3 py-2 rounded-xl border border-slate-200 bg-slate-50/70 text-[#123B78] font-bold text-sm font-mono"
+                  />
+                </div>
+              </div>
+            ) : (
+              <LineItemsTable
+                items={activeItems}
+                lines={lines}
+                onChange={setLines}
+                addLabel="Add material"
+                onScan={handleScan}
+                scanLabel="Scan barcode"
+              />
+            )}
           </div>
 
           {/* Computed Summary Box */}
           <div className="p-4 rounded-xl bg-[#F6F9FB] border border-slate-200/70 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
             <div className="space-y-1 text-xs text-[#526174]">
-              <div>
-                {lines.length} {lines.length === 1 ? 'line item' : 'line items'} received
-              </div>
-              <div>Each line is quantity × rate, taken from your item master.</div>
+              {isIndirect ? (
+                <>
+                  <div>Recorded as an indirect purchase — no catalogued item.</div>
+                  <div>
+                    It sits in payables and on the reminder worklist like any other purchase.
+                  </div>
+                </>
+              ) : (
+                <>
+                  <div>
+                    {lines.length} {lines.length === 1 ? 'line item' : 'line items'} received
+                  </div>
+                  <div>Each line is quantity × rate, taken from your item master.</div>
+                </>
+              )}
             </div>
             <div className="text-right">
-              <span className="text-xs text-[#526174]">Total Receipt Value</span>
-              <div className="text-2xl font-bold text-[#123B78]">{formatAmount(receiptTotal)}</div>
+              <span className="text-xs text-[#526174]">
+                {isIndirect ? 'Total Purchase Value' : 'Total Receipt Value'}
+              </span>
+              <div className="text-2xl font-bold text-[#123B78]">
+                {formatAmount(isIndirect ? Number(indirectAmount) || 0 : receiptTotal)}
+              </div>
             </div>
           </div>
 
@@ -233,7 +359,7 @@ export default function GRNPage({ onBackToDashboard, onTriggerComingSoon }) {
               type="submit"
               className="w-full sm:w-auto px-7 py-3 rounded-xl bg-[#1265A8] hover:bg-[#123B78] text-white font-bold text-sm shadow-xs transition-colors"
             >
-              Create GRN
+              {isIndirect ? 'Record Indirect Purchase' : 'Create GRN'}
             </button>
           </div>
         </form>

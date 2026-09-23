@@ -48,7 +48,7 @@ export function todayIsoDate() {
 export function getPaymentTermsDays(record) {
   const own = Number(record?.paymentTermsDays);
   if (own) return own;
-  if (record?.type === 'Purchase') {
+  if (isPurchaseRecord(record)) {
     const supplier = ALL_SUPPLIERS.find((item) => item.name === record?.party);
     if (supplier) return Number(supplier.paymentTermsDays) || 0;
   }
@@ -60,6 +60,16 @@ export function getDueDate(record) {
   const issued = parseIsoDate(record?.date);
   if (issued === null) return null;
   return toIsoDate(issued + getPaymentTermsDays(record) * DAY_MS);
+}
+
+/**
+ * A purchase for every purpose except the score: a direct goods receipt and an indirect
+ * spend (consumables, MRO) both owe a supplier money, so both are payables, both chase
+ * the supplier's terms and both settle the same way. `score.js` still reads 'Sale' alone,
+ * so neither kind can reach trade volume.
+ */
+export function isPurchaseRecord(record) {
+  return record?.type === 'Purchase' || record?.type === 'Indirect';
 }
 
 /** Anything not fully paid still needs chasing, including partially paid invoices. */
@@ -129,7 +139,8 @@ export function getPaymentPerformance(records, today = todayIsoDate()) {
 /**
  * @typedef {Object} TradeRecord
  * @property {string} id
- * @property {'Sale'|'Purchase'} type
+ * @property {'Sale'|'Purchase'|'Indirect'} type  Indirect = a free-text spend, not a catalogued part.
+ * @property {string|null} itemDescription  What an indirect purchase was for; null otherwise.
  * @property {string} party              Buyer for a Sale, seller for a Purchase.
  * @property {number} amount             Rupees, plain number (no formatting).
  * @property {string} date               ISO date string, e.g. '2026-09-20'.
@@ -231,7 +242,7 @@ function withPaymentDefaults(record) {
     paidDate: record?.paidDate ?? null,
     paymentProof: record?.paymentProof ?? LEGACY_SOURCE_PROOF[paymentSource] ?? null,
     receiptFileName: record?.receiptFileName ?? null,
-    paymentDirection: record?.paymentDirection ?? (record?.type === 'Purchase' ? 'Payable' : 'Receivable'),
+    paymentDirection: record?.paymentDirection ?? (isPurchaseRecord(record) ? 'Payable' : 'Receivable'),
     // Records saved before tenants existed belong to the plant the app ran as.
     vendorId: record?.vendorId ?? 'VM-0001',
   };
@@ -291,13 +302,19 @@ export function AppStateProvider({ children }) {
       paidOnTime: record?.paidOnTime ?? null,
       // The document's own rows, kept so a record can show what made up its amount.
       lineItems: Array.isArray(record?.lineItems) ? record.lineItems : null,
+      // An indirect purchase has no catalogued item, so it carries its own description.
+      itemDescription: record?.itemDescription ?? null,
     });
     setState((prev) => ({
       ...prev,
       records: [newRecord, ...prev.records],
       auditLog: appendAudit(
         prev,
-        newRecord.type === 'Purchase' ? 'Recorded goods receipt' : 'Recorded sale invoice',
+        newRecord.type === 'Indirect'
+          ? 'Recorded indirect purchase'
+          : newRecord.type === 'Purchase'
+            ? 'Recorded goods receipt'
+            : 'Recorded sale invoice',
         `${newRecord.id} · ${newRecord.party}`
       ),
     }));
@@ -349,7 +366,7 @@ export function AppStateProvider({ children }) {
           paymentProof: paid > 0 ? PAYMENT_PROOF_LOGGED : null,
           receiptFileName: receiptFileName ?? record.receiptFileName ?? null,
           paymentStatus: paid <= 0 ? 'Unpaid' : paid >= total ? 'Paid' : 'Partially Paid',
-          paymentDirection: record.type === 'Purchase' ? 'Payable' : 'Receivable',
+          paymentDirection: isPurchaseRecord(record) ? 'Payable' : 'Receivable',
         };
 
         // A logged receipt is never credit-grade, so this stays null until a bank match.

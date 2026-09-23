@@ -2,6 +2,7 @@
 // and asks the browser to print it, so "Save as PDF" produces the file — no PDF library,
 // no backend, and no print rules bolted onto the app's own stylesheet.
 import { scoreTenant } from '../data/score.js';
+import { isPurchaseRecord } from '../context/AppStateContext.jsx';
 
 const BRAND = {
   navy: '#123B78',
@@ -55,7 +56,7 @@ export function openReadinessReport(customer, records, scoreSettings) {
 
   const verified = records.filter((record) => record.status === 'Verified');
   const sales = records.filter((record) => record.type === 'Sale');
-  const purchases = records.filter((record) => record.type === 'Purchase');
+  const purchases = records.filter((record) => isPurchaseRecord(record));
   const paid = records.filter((record) => record.paymentStatus === 'Paid');
   const bankConfirmed = paid.filter((record) => record.paymentProof === 'Bank-confirmed');
   const totalValue = records.reduce((total, record) => total + (Number(record.amount) || 0), 0);

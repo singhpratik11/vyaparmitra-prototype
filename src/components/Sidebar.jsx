@@ -16,7 +16,7 @@ import {
 } from 'lucide-react';
 import Logo from './Logo';
 import { useSession } from '../context/SessionContext.jsx';
-import { useAppState, isUnpaid, getDueBucket } from '../context/AppStateContext.jsx';
+import { useAppState, isPurchaseRecord, isUnpaid, getDueBucket } from '../context/AppStateContext.jsx';
 
 export default function Sidebar({ 
   currentView, 
@@ -35,7 +35,7 @@ export default function Sidebar({
   // Only what this role actually works: warehouse clerks see payables alone.
   const overdueCount = records.filter((record) => {
     if (!isUnpaid(record) || getDueBucket(record) !== 'Overdue') return false;
-    if (role === 'Warehouse Clerk') return record.type === 'Purchase';
+    if (role === 'Warehouse Clerk') return isPurchaseRecord(record);
     return true;
   }).length;
 
