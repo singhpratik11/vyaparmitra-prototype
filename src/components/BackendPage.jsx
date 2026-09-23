@@ -3,6 +3,7 @@ import { ArrowLeft, Building2, Globe2, Lock, RotateCcw } from 'lucide-react';
 import CreditworthinessCard from './CreditworthinessCard';
 import RecentActivityTable from './RecentActivityTable';
 import AuditLogPage from './AuditLogPage';
+import CohortRetentionChart from './CohortRetentionChart';
 import { customers, itemsByVendor, scoreModel } from '../data/database.js';
 import { useSession } from '../context/SessionContext.jsx';
 import { useAppState } from '../context/AppStateContext.jsx';
@@ -768,6 +769,8 @@ export default function BackendPage({ onTriggerComingSoon }) {
               </span>
               <span className="mt-2 sm:mt-0">— = month not elapsed for that cohort yet</span>
             </div>
+
+            <CohortRetentionChart months={RETENTION_MONTHS} cohorts={COHORTS} />
           </div>
         </section>
       )}
