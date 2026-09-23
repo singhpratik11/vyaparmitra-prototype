@@ -1,7 +1,18 @@
 import React, { useState } from 'react';
-import { ArrowRight, Info, ShieldCheck } from 'lucide-react';
+import { ArrowRight, Info, ShieldCheck, Zap } from 'lucide-react';
 import Logo from './Logo';
 import { useSession } from '../context/SessionContext.jsx';
+import { users } from '../data/database.js';
+
+/**
+ * Two identities off the demo user list, so a walkthrough does not start by typing IDs:
+ * one ordinary plant user and the backend admin. Nothing here bypasses the login — the
+ * shortcut fills the same pair in and submits it through the same signIn().
+ */
+const DEMO_LOGINS = [
+  users.find((user) => user.vendorId !== 'ADMIN' && user.role === 'Owner'),
+  users.find((user) => user.vendorId === 'ADMIN'),
+].filter(Boolean);
 
 export default function LoginPage() {
   const { signIn } = useSession();
@@ -12,6 +23,14 @@ export default function LoginPage() {
   const handleSubmit = (e) => {
     e.preventDefault();
     const result = signIn(vendorId, employeeId);
+    if (!result.ok) setError(result.error);
+  };
+
+  const useDemoLogin = (user) => {
+    setVendorId(user.vendorId);
+    setEmployeeId(user.employeeId);
+    setError('');
+    const result = signIn(user.vendorId, user.employeeId);
     if (!result.ok) setError(result.error);
   };
 
@@ -102,6 +121,42 @@ export default function LoginPage() {
               <ArrowRight className="w-4 h-4" />
             </button>
           </form>
+
+          <div className="mt-6 pt-5 border-t border-slate-100">
+            <div className="flex items-center justify-between gap-4 mb-3">
+              <h3 className="text-xs font-bold uppercase tracking-wider text-[#526174]">
+                Demo shortcuts
+              </h3>
+              <span className="inline-flex items-center gap-1.5 px-3 py-1 bg-amber-50 border border-amber-200 text-amber-800 rounded-full text-xs font-semibold">
+                <Zap className="w-3.5 h-3.5" />
+                <span>Demo only</span>
+              </span>
+            </div>
+
+            <div className="flex flex-wrap gap-2.5">
+              {DEMO_LOGINS.map((user) => (
+                <button
+                  key={`${user.vendorId}-${user.employeeId}`}
+                  type="button"
+                  onClick={() => useDemoLogin(user)}
+                  className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-white border border-slate-200/80 text-[#123B78] hover:bg-slate-50 text-xs font-bold shadow-2xs transition-colors"
+                >
+                  <ShieldCheck className="w-4 h-4 text-[#10B8A5]" />
+                  <span>
+                    {user.name} · {user.role}
+                  </span>
+                  <span className="font-mono font-normal text-[#526174]">
+                    {user.vendorId}/{user.employeeId}
+                  </span>
+                </button>
+              ))}
+            </div>
+
+            <p className="text-xs text-[#526174] mt-3 leading-relaxed">
+              These fill the pair above and sign in with it. The normal Vendor ID + Employee ID login
+              is unchanged, and no shortcut exists outside this prototype.
+            </p>
+          </div>
         </div>
       </main>
 
