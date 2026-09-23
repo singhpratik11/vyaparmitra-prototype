@@ -1,5 +1,5 @@
 import React from 'react';
-import { Plus, Trash2 } from 'lucide-react';
+import { Plus, ScanLine, Trash2 } from 'lucide-react';
 
 /** 28 -> "28% (14% CGST + 14% SGST)", the split the invoice form already displayed. */
 export function formatGst(gstPct) {
@@ -59,7 +59,15 @@ export function toStoredLines(lines, items) {
  * Several item rows on one invoice or GRN. Rate prefills from the item master and stays
  * editable, and the line total is always quantity x rate. Styling is the forms' own.
  */
-export default function LineItemsTable({ items, lines, onChange, showGst = false, addLabel = 'Add item' }) {
+export default function LineItemsTable({
+  items,
+  lines,
+  onChange,
+  showGst = false,
+  addLabel = 'Add item',
+  onScan = null,
+  scanLabel = 'Scan barcode',
+}) {
   const updateLine = (index, patch) => {
     onChange(lines.map((line, position) => (position === index ? { ...line, ...patch } : line)));
   };
@@ -165,14 +173,33 @@ export default function LineItemsTable({ items, lines, onChange, showGst = false
         </table>
       </div>
 
-      <button
-        type="button"
-        onClick={() => onChange([...lines, blankLine()])}
-        className="mt-3 inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-white border border-slate-200/80 text-[#123B78] hover:bg-slate-50 text-xs font-bold shadow-2xs transition-colors"
-      >
-        <Plus className="w-4 h-4 text-[#10B8A5]" />
-        <span>{addLabel}</span>
-      </button>
+      <div className="mt-3 flex flex-wrap items-center gap-2.5">
+        <button
+          type="button"
+          onClick={() => onChange([...lines, blankLine()])}
+          className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-white border border-slate-200/80 text-[#123B78] hover:bg-slate-50 text-xs font-bold shadow-2xs transition-colors"
+        >
+          <Plus className="w-4 h-4 text-[#10B8A5]" />
+          <span>{addLabel}</span>
+        </button>
+
+        {onScan && (
+          <>
+            <button
+              type="button"
+              onClick={onScan}
+              className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-white border border-slate-200/80 text-[#123B78] hover:bg-slate-50 text-xs font-bold shadow-2xs transition-colors"
+            >
+              <ScanLine className="w-4 h-4 text-[#1265A8]" />
+              <span>{scanLabel}</span>
+            </button>
+
+            <span className="inline-flex items-center gap-1.5 px-3 py-1 bg-amber-50 border border-amber-200 text-amber-800 rounded-full text-xs font-semibold">
+              <span>Simulated scan (prototype)</span>
+            </span>
+          </>
+        )}
+      </div>
     </div>
   );
 }

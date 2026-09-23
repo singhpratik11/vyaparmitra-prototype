@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useRef, useState } from 'react';
 import { ArrowLeft, PackagePlus, Sparkles, Lock, CheckCircle2 } from 'lucide-react';
 import { useAppState } from '../context/AppStateContext.jsx';
 import { useSession } from '../context/SessionContext.jsx';
@@ -35,6 +35,20 @@ export default function GRNPage({ onBackToDashboard, onTriggerComingSoon }) {
 
   // A GRN has never carried GST in this prototype; the receipt value is the sum of its lines.
   const receiptTotal = documentTotal(lines);
+
+  // SIMULATED scanner — no camera, no barcode reader. It walks the tenant's own item master
+  // in order so a demo repeats the same way twice, and only does fast line entry.
+  const scanPosition = useRef(0);
+
+  const handleScan = () => {
+    if (!activeItems.length) return;
+    const scanned = activeItems[scanPosition.current % activeItems.length];
+    scanPosition.current += 1;
+    setLines((current) => [
+      ...current,
+      { ...blankLine(), itemCode: scanned.itemCode, quantity: '1', rate: String(scanned.unitPrice) },
+    ]);
+  };
 
   const handleSubmit = (e) => {
     e.preventDefault();
@@ -179,6 +193,8 @@ export default function GRNPage({ onBackToDashboard, onTriggerComingSoon }) {
               lines={lines}
               onChange={setLines}
               addLabel="Add material"
+              onScan={handleScan}
+              scanLabel="Scan barcode"
             />
           </div>
 
