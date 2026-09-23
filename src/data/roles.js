@@ -1,7 +1,8 @@
 // Segregation of duties. One map, read by the router and by every screen that offers a
 // shortcut into a view, so a control can never appear for a role that cannot reach it.
 export const ROLE_VIEWS = {
-  Owner: ['home', 'dashboard', 'worklist', 'create-invoice', 'create-grn', 'audit'],
+  // The Owner also keeps their own supplier and buyer masters.
+  Owner: ['home', 'dashboard', 'worklist', 'create-invoice', 'create-grn', 'masters', 'audit'],
   'Billing Clerk': ['create-invoice'],
   'Warehouse Clerk': ['create-grn', 'worklist'],
   // Finance reads the ledger and the cash view and settles payments, but does not

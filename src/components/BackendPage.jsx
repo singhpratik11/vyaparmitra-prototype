@@ -3,7 +3,7 @@ import { ArrowLeft, Building2, Globe2, Lock, RotateCcw } from 'lucide-react';
 import CreditworthinessCard from './CreditworthinessCard';
 import RecentActivityTable from './RecentActivityTable';
 import AuditLogPage from './AuditLogPage';
-import { customers, suppliersByVendor, itemsByVendor, buyersByVendor, scoreModel } from '../data/database.js';
+import { customers, itemsByVendor, scoreModel } from '../data/database.js';
 import { useSession } from '../context/SessionContext.jsx';
 import { useAppState } from '../context/AppStateContext.jsx';
 import { PARAMETERS, scoreTenant } from '../data/score.js';
@@ -88,7 +88,7 @@ function ScoreBreakdown({ title, subtitle, score }) {
 
 export default function BackendPage({ onTriggerComingSoon }) {
   const { selectedCustomerId, selectCustomer, session } = useSession();
-  const { allRecords, resetDemoData } = useAppState();
+  const { allRecords, resetDemoData, mastersFor } = useAppState();
   const [mode, setMode] = useState('customer');
   const [query, setQuery] = useState('');
   const [weights, setWeights] = useState(scoreModel.weights);
@@ -107,9 +107,10 @@ export default function BackendPage({ onTriggerComingSoon }) {
 
   const selectedScore = selectedCustomerId ? scoreFor(selectedCustomerId) : null;
 
-  const suppliers = suppliersByVendor[selectedCustomerId] || [];
+  const tenantMasters = mastersFor(selectedCustomerId);
+  const suppliers = tenantMasters.suppliers;
+  const buyers = tenantMasters.buyers;
   const items = itemsByVendor[selectedCustomerId] || [];
-  const buyers = buyersByVendor[selectedCustomerId] || [];
 
   const selectedCustomer = customers.find((item) => item.vendorId === selectedCustomerId) || null;
   const isDrilledIn = mode === 'customer' && Boolean(selectedCustomer);

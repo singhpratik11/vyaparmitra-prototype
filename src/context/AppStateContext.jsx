@@ -1,5 +1,5 @@
 import React, { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react';
-import { suppliersByVendor } from '../data/database.js';
+import { suppliersByVendor, buyersByVendor } from '../data/database.js';
 import { buildSeedRecords, buildSeedAuditLog } from '../data/seed.js';
 import { useSession } from './SessionContext.jsx';
 
@@ -155,8 +155,26 @@ export function getPaymentPerformance(records, today = todayIsoDate()) {
  */
 
 /** A fresh session opens on the demo ledger rather than three empty plants. */
+/**
+ * A tenant's own additions and edits to its masters, keyed by vendorId. The JSON stays
+ * the seed; anything here is layered over it by id, so an edit never rewrites the file
+ * and a plant can only ever change its own lists.
+ */
+const EMPTY_MASTERS = { suppliers: [], buyers: [] };
+
+function mergeMasters(seedList, overrides, idKey) {
+  if (!overrides.length) return seedList;
+  const byId = new Map(overrides.map((entry) => [entry[idKey], entry]));
+  const seedIds = new Set(seedList.map((entry) => entry[idKey]));
+  return [
+    ...seedList.map((entry) => byId.get(entry[idKey]) || entry),
+    ...overrides.filter((entry) => !seedIds.has(entry[idKey])),
+  ];
+}
+
 function freshState() {
   return {
+    masters: {},
     auditLog: buildSeedAuditLog(),
     records: buildSeedRecords(),
     profileShared: false,
@@ -183,6 +201,7 @@ function readPersistedState() {
       records: stored,
       // Storage written before the audit trail existed starts from the seeded history.
       auditLog: Array.isArray(parsed?.auditLog) ? parsed.auditLog : buildSeedAuditLog(),
+      masters: parsed?.masters && typeof parsed.masters === 'object' ? parsed.masters : {},
       profileShared: Boolean(parsed?.profileShared),
       lenderDecision: parsed?.lenderDecision ?? null,
     };
@@ -348,6 +367,45 @@ export function AppStateProvider({ children }) {
     }));
   }, [appendAudit]);
 
+  /**
+   * Adds or edits one supplier or buyer for the tenant in scope. An entry carrying an
+   * existing id replaces it; anything else is appended. Owners reach this for their own
+   * plant only — the view itself is gated to them.
+   */
+  const upsertMaster = useCallback((kind, entry) => {
+    const idKey = kind === 'suppliers' ? 'supplierId' : 'buyerId';
+
+    setState((prev) => {
+      const vendorId = scopeVendorId;
+      if (!vendorId) return prev;
+
+      const tenantMasters = prev.masters?.[vendorId] || EMPTY_MASTERS;
+      const existing = tenantMasters[kind] || [];
+      const isKnown = existing.some((item) => item[idKey] === entry[idKey]);
+
+      const seedList = (kind === 'suppliers' ? suppliersByVendor : buyersByVendor)[vendorId] || [];
+      const isEdit = isKnown || seedList.some((item) => item[idKey] === entry[idKey]);
+
+      return {
+        ...prev,
+        masters: {
+          ...prev.masters,
+          [vendorId]: {
+            ...tenantMasters,
+            [kind]: isKnown
+              ? existing.map((item) => (item[idKey] === entry[idKey] ? entry : item))
+              : [...existing, entry],
+          },
+        },
+        auditLog: appendAudit(
+          prev,
+          `${isEdit ? 'Edited' : 'Added'} ${kind === 'suppliers' ? 'supplier' : 'buyer'}`,
+          `${entry[idKey]} · ${entry.name}`
+        ),
+      };
+    });
+  }, [scopeVendorId, appendAudit]);
+
   /** Restores the seeded demo ledger and clears any sharing or lender decision. */
   const resetDemoData = useCallback(() => {
     // The seeded history comes back with the seeded ledger, plus a note of the reset.
@@ -366,6 +424,18 @@ export function AppStateProvider({ children }) {
     }));
   }, [appendAudit]);
 
+  /** Seeded masters for a tenant with that tenant's own edits and additions layered on. */
+  const mastersFor = useCallback(
+    (vendorId) => {
+      const overrides = state.masters?.[vendorId] || EMPTY_MASTERS;
+      return {
+        suppliers: mergeMasters(suppliersByVendor[vendorId] || [], overrides.suppliers || [], 'supplierId'),
+        buyers: mergeMasters(buyersByVendor[vendorId] || [], overrides.buyers || [], 'buyerId'),
+      };
+    },
+    [state.masters]
+  );
+
   // A tenant only ever sees its own ledger; an admin sees the customer they picked.
   const scopedRecords = useMemo(
     () => state.records.filter((record) => record.vendorId === scopeVendorId),
@@ -377,6 +447,10 @@ export function AppStateProvider({ children }) {
       records: scopedRecords,
       allRecords: state.records,
       auditLog: state.auditLog || [],
+      suppliers: mastersFor(scopeVendorId).suppliers,
+      buyers: mastersFor(scopeVendorId).buyers,
+      mastersFor,
+      upsertMaster,
       profileShared: state.profileShared,
       lenderDecision: state.lenderDecision,
       addRecord,
@@ -391,6 +465,10 @@ export function AppStateProvider({ children }) {
       scopedRecords,
       state.records,
       state.auditLog,
+      state.masters,
+      scopeVendorId,
+      mastersFor,
+      upsertMaster,
       state.profileShared,
       state.lenderDecision,
       addRecord,

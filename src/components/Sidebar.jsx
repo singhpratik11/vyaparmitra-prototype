@@ -11,7 +11,8 @@ import {
   ChevronRight,
   CalendarClock,
   Database,
-  ScrollText
+  ScrollText,
+  BookUser
 } from 'lucide-react';
 import Logo from './Logo';
 import { useSession } from '../context/SessionContext.jsx';
@@ -63,6 +64,12 @@ export default function Sidebar({
       icon: CalendarClock,
       description: 'Unpaid Records by Due Date',
       badge: overdueCount ? `${overdueCount} overdue` : null,
+    },
+    {
+      id: 'masters',
+      label: 'Suppliers & Buyers',
+      icon: BookUser,
+      description: 'Your Own Master Data',
     },
     {
       id: 'audit',

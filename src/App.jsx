@@ -7,6 +7,7 @@ import InvoicePage from './components/InvoicePage';
 import GRNPage from './components/GRNPage';
 import WorklistPage from './components/WorklistPage';
 import AuditLogPage from './components/AuditLogPage';
+import MastersPage from './components/MastersPage';
 import LenderProfilePage from './components/LenderProfilePage';
 import ComingSoonModal from './components/ComingSoonModal';
 import LoginPage from './components/LoginPage';
@@ -155,6 +156,9 @@ export default function App() {
                 onTriggerComingSoon={handleTriggerComingSoon}
               />
             )}
+
+            {/* View 9: MASTERS (Owner manages their own suppliers and buyers) */}
+            {activeView === 'masters' && <MastersPage onNavigate={handleNavigate} />}
 
             {/* View 8: AUDIT LOG (Owner sees their own plant's trail) */}
             {activeView === 'audit' && (

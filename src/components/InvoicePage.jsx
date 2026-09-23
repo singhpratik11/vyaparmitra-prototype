@@ -11,8 +11,8 @@ function formatGst(gstPct) {
 }
 
 export default function InvoicePage({ onBackToDashboard, onTriggerComingSoon }) {
-  const { addRecord } = useAppState();
-  const { items: activeItems, buyers: activeBuyers } = useSession();
+  const { addRecord, buyers: activeBuyers } = useAppState();
+  const { items: activeItems } = useSession();
 
   const [buyerId, setBuyerId] = useState(activeBuyers[0]?.buyerId || '');
   const [invoiceDate, setInvoiceDate] = useState('2026-09-18');

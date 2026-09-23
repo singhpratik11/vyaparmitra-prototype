@@ -1,5 +1,5 @@
 import React, { createContext, useCallback, useContext, useMemo, useState } from 'react';
-import { customers, users, suppliersByVendor, itemsByVendor, buyersByVendor } from '../data/database.js';
+import { customers, users, itemsByVendor } from '../data/database.js';
 
 const ADMIN_VENDOR_ID = 'ADMIN';
 
@@ -54,9 +54,9 @@ export function SessionProvider({ children }) {
       signOut,
       scopeVendorId,
       customer,
-      suppliers: suppliersByVendor[scopeVendorId] || [],
+      // Suppliers and buyers come from the store, which layers the tenant's own edits
+      // over these seeds; items are not editable and stay here.
       items: itemsByVendor[scopeVendorId] || [],
-      buyers: buyersByVendor[scopeVendorId] || [],
       tenantUsers: users.filter((user) => user.vendorId === scopeVendorId),
       selectedCustomerId,
       selectCustomer: setSelectedCustomerId,
