@@ -289,6 +289,8 @@ export function AppStateProvider({ children }) {
       status: record?.status ?? 'Unverified',
       verificationSource: record?.verificationSource ?? null,
       paidOnTime: record?.paidOnTime ?? null,
+      // The document's own rows, kept so a record can show what made up its amount.
+      lineItems: Array.isArray(record?.lineItems) ? record.lineItems : null,
     });
     setState((prev) => ({
       ...prev,

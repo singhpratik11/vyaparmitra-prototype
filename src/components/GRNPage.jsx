@@ -1,16 +1,40 @@
 import React, { useState } from 'react';
 import { ArrowLeft, PackagePlus, Sparkles, Lock, CheckCircle2 } from 'lucide-react';
 import { useAppState } from '../context/AppStateContext.jsx';
+import { useSession } from '../context/SessionContext.jsx';
+import LineItemsTable, {
+  blankLine,
+  documentTotal,
+  formatAmount,
+  toStoredLines,
+} from './LineItemsTable';
+
+/** One prefilled row, so the form still opens with something in it. */
+function openingLines(activeItems) {
+  const first = activeItems[0];
+  return [
+    {
+      ...blankLine(),
+      itemCode: first?.itemCode || '',
+      quantity: first ? '1500' : '',
+      rate: first ? String(first.unitPrice) : '',
+    },
+  ];
+}
 
 export default function GRNPage({ onBackToDashboard, onTriggerComingSoon }) {
   const { addRecord, suppliers: activeSuppliers } = useAppState();
+  const { items: activeItems } = useSession();
 
   const [supplierId, setSupplierId] = useState(activeSuppliers[0]?.supplierId || '');
   const [grnDate, setGrnDate] = useState('2026-09-18');
-  const [totalValue, setTotalValue] = useState('180000');
+  const [lines, setLines] = useState(() => openingLines(activeItems));
   const [savedMessage, setSavedMessage] = useState('');
 
   const selectedSupplier = activeSuppliers.find((item) => item.supplierId === supplierId) || null;
+
+  // A GRN has never carried GST in this prototype; the receipt value is the sum of its lines.
+  const receiptTotal = documentTotal(lines);
 
   const handleSubmit = (e) => {
     e.preventDefault();
@@ -18,15 +42,16 @@ export default function GRNPage({ onBackToDashboard, onTriggerComingSoon }) {
     const record = addRecord({
       type: 'Purchase',
       party: selectedSupplier ? selectedSupplier.name : '',
-      amount: Number(totalValue),
+      amount: receiptTotal,
       date: grnDate,
       status: 'Unverified',
+      lineItems: toStoredLines(lines, activeItems),
     });
 
     setSavedMessage(`Purchase recorded — ${record.id}`);
     setSupplierId('');
     setGrnDate('');
-    setTotalValue('');
+    setLines([blankLine()]);
   };
 
   return (
@@ -149,60 +174,25 @@ export default function GRNPage({ onBackToDashboard, onTriggerComingSoon }) {
               Material Receipt Details
             </h3>
 
-            <div className="grid grid-cols-1 md:grid-cols-12 gap-4 items-end">
-              {/* Product */}
-              <div className="md:col-span-5">
-                <label className="block text-xs font-semibold text-[#172033] mb-1.5">
-                  Product / Raw Material
-                </label>
-                <input
-                  type="text"
-                  disabled
-                  defaultValue="Cold Rolled Steel Strips (Grade IS-513)"
-                  className="w-full px-3 py-2 rounded-xl border border-slate-200 bg-slate-50/70 text-[#172033] text-sm cursor-not-allowed"
-                />
-              </div>
+            <LineItemsTable
+              items={activeItems}
+              lines={lines}
+              onChange={setLines}
+              addLabel="Add material"
+            />
+          </div>
 
-              {/* Quantity */}
-              <div className="md:col-span-2">
-                <label className="block text-xs font-semibold text-[#172033] mb-1.5">
-                  Quantity
-                </label>
-                <input
-                  type="text"
-                  disabled
-                  defaultValue="1,500 Kg"
-                  className="w-full px-3 py-2 rounded-xl border border-slate-200 bg-slate-50/70 text-[#172033] text-sm cursor-not-allowed"
-                />
+          {/* Computed Summary Box */}
+          <div className="p-4 rounded-xl bg-[#F6F9FB] border border-slate-200/70 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+            <div className="space-y-1 text-xs text-[#526174]">
+              <div>
+                {lines.length} {lines.length === 1 ? 'line item' : 'line items'} received
               </div>
-
-              {/* Rate */}
-              <div className="md:col-span-2">
-                <label className="block text-xs font-semibold text-[#172033] mb-1.5">
-                  Rate (₹ / Unit)
-                </label>
-                <input
-                  type="text"
-                  disabled
-                  defaultValue="₹ 120.00"
-                  className="w-full px-3 py-2 rounded-xl border border-slate-200 bg-slate-50/70 text-[#172033] text-sm cursor-not-allowed font-mono"
-                />
-              </div>
-
-              {/* Total Value */}
-              <div className="md:col-span-3">
-                <label className="block text-xs font-semibold text-[#172033] mb-1.5">
-                  Total Value
-                </label>
-                <input
-                  type="number"
-                  min="0"
-                  step="0.01"
-                  value={totalValue}
-                  onChange={(e) => setTotalValue(e.target.value)}
-                  className="w-full px-3 py-2 rounded-xl border border-slate-200 bg-slate-50/70 text-[#123B78] font-bold text-sm font-mono"
-                />
-              </div>
+              <div>Each line is quantity × rate, taken from your item master.</div>
+            </div>
+            <div className="text-right">
+              <span className="text-xs text-[#526174]">Total Receipt Value</span>
+              <div className="text-2xl font-bold text-[#123B78]">{formatAmount(receiptTotal)}</div>
             </div>
           </div>
 

@@ -2,12 +2,25 @@ import React, { useState } from 'react';
 import { ArrowLeft, FilePlus2, Sparkles, AlertCircle, Info, Lock, CheckCircle2 } from 'lucide-react';
 import { useAppState } from '../context/AppStateContext.jsx';
 import { useSession } from '../context/SessionContext.jsx';
+import LineItemsTable, {
+  blankLine,
+  documentGst,
+  documentTotal,
+  formatAmount,
+  toStoredLines,
+} from './LineItemsTable';
 
-/** 28 -> "28% (14% CGST + 14% SGST)", the split the form already displayed. */
-function formatGst(gstPct) {
-  if (gstPct === undefined || gstPct === null) return '';
-  const half = Number((gstPct / 2).toFixed(2));
-  return `${gstPct}% (${half}% CGST + ${half}% SGST)`;
+/** One prefilled row, so the form still opens with something in it. */
+function openingLines(activeItems) {
+  const first = activeItems[0];
+  return [
+    {
+      ...blankLine(),
+      itemCode: first?.itemCode || '',
+      quantity: first ? '250' : '',
+      rate: first ? String(first.unitPrice) : '',
+    },
+  ];
 }
 
 export default function InvoicePage({ onBackToDashboard, onTriggerComingSoon }) {
@@ -19,13 +32,15 @@ export default function InvoicePage({ onBackToDashboard, onTriggerComingSoon }) 
   const [paymentTermsDays, setPaymentTermsDays] = useState(
     String(activeBuyers[0]?.paymentTermsDays ?? '')
   );
-  const [itemCode, setItemCode] = useState(activeItems[0]?.itemCode || '');
-  const [quantity, setQuantity] = useState('250');
-  const [rate, setRate] = useState(String(activeItems[0]?.unitPrice ?? ''));
+  const [lines, setLines] = useState(() => openingLines(activeItems));
   const [savedMessage, setSavedMessage] = useState('');
 
   const selectedBuyer = activeBuyers.find((item) => item.buyerId === buyerId) || null;
-  const selectedItem = activeItems.find((item) => item.itemCode === itemCode) || null;
+
+  // Subtotal is the sum of the line totals; GST is shown alongside it exactly as before,
+  // and stays out of the saved amount.
+  const subtotal = documentTotal(lines);
+  const gstAmount = documentGst(lines, activeItems);
 
   /** Picking a buyer autofills their GSTIN and agreed payment terms. */
   const handleBuyerChange = (nextBuyerId) => {
@@ -34,31 +49,24 @@ export default function InvoicePage({ onBackToDashboard, onTriggerComingSoon }) 
     setPaymentTermsDays(nextBuyer ? String(nextBuyer.paymentTermsDays) : '');
   };
 
-  const handleItemChange = (nextCode) => {
-    setItemCode(nextCode);
-    const nextItem = activeItems.find((item) => item.itemCode === nextCode);
-    setRate(nextItem ? String(nextItem.unitPrice) : '');
-  };
-
   const handleSubmit = (e) => {
     e.preventDefault();
 
     const record = addRecord({
       type: 'Sale',
       party: selectedBuyer ? selectedBuyer.name : '',
-      amount: Number(quantity) * Number(rate),
+      amount: subtotal,
       date: invoiceDate,
       paymentTermsDays: Number(paymentTermsDays),
       status: 'Unverified',
+      lineItems: toStoredLines(lines, activeItems),
     });
 
     setSavedMessage(`Sale recorded — ${record.id}`);
     setBuyerId('');
     setInvoiceDate('');
     setPaymentTermsDays('');
-    setItemCode('');
-    setQuantity('');
-    setRate('');
+    setLines([blankLine()]);
   };
 
   return (
@@ -182,81 +190,35 @@ export default function InvoicePage({ onBackToDashboard, onTriggerComingSoon }) 
               Item Details
             </h3>
 
-            <div className="grid grid-cols-1 md:grid-cols-12 gap-4 items-end">
-              {/* Product / Service */}
-              <div className="md:col-span-5">
-                <label className="block text-xs font-semibold text-[#172033] mb-1.5">
-                  Product / Service Description
-                </label>
-                <select
-                  value={itemCode}
-                  onChange={(e) => handleItemChange(e.target.value)}
-                  className="w-full px-3 py-2 rounded-xl border border-slate-200 bg-slate-50/70 text-[#172033] text-sm"
-                >
-                  <option value="">Select item</option>
-                  {activeItems.map((item) => (
-                    <option key={item.itemCode} value={item.itemCode}>
-                      {item.name} ({item.itemCode})
-                    </option>
-                  ))}
-                </select>
-              </div>
-
-              {/* Quantity */}
-              <div className="md:col-span-2">
-                <label className="block text-xs font-semibold text-[#172033] mb-1.5">
-                  Quantity
-                </label>
-                <input
-                  type="number"
-                  min="0"
-                  value={quantity}
-                  onChange={(e) => setQuantity(e.target.value)}
-                  className="w-full px-3 py-2 rounded-xl border border-slate-200 bg-slate-50/70 text-[#172033] text-sm"
-                />
-              </div>
-
-              {/* Rate */}
-              <div className="md:col-span-2">
-                <label className="block text-xs font-semibold text-[#172033] mb-1.5">
-                  Rate (₹)
-                </label>
-                <input
-                  type="number"
-                  min="0"
-                  step="0.01"
-                  value={rate}
-                  onChange={(e) => setRate(e.target.value)}
-                  className="w-full px-3 py-2 rounded-xl border border-slate-200 bg-slate-50/70 text-[#172033] text-sm font-mono"
-                />
-              </div>
-
-              {/* GST */}
-              <div className="md:col-span-3">
-                <label className="block text-xs font-semibold text-[#172033] mb-1.5">
-                  GST Rate
-                </label>
-                <input
-                  type="text"
-                  disabled
-                  readOnly
-                  value={formatGst(selectedItem?.gstPct)}
-                  className="w-full px-3 py-2 rounded-xl border border-slate-200 bg-slate-50/70 text-[#172033] text-sm cursor-not-allowed"
-                />
-              </div>
-            </div>
+            <LineItemsTable
+              items={activeItems}
+              lines={lines}
+              onChange={setLines}
+              showGst
+              addLabel="Add item"
+            />
           </div>
 
           {/* Computed Summary Box */}
           <div className="p-4 rounded-xl bg-[#F6F9FB] border border-slate-200/70 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
             <div className="space-y-1 text-xs text-[#526174]">
-              <div>Subtotal: <span className="font-semibold text-[#172033]">₹2,40,000.00</span></div>
-              <div>Estimated GST (18%): <span className="font-semibold text-[#172033]">₹43,200.00</span></div>
+              <div>
+                Subtotal:{' '}
+                <span className="font-semibold text-[#172033]">{formatAmount(subtotal)}</span>
+              </div>
+              <div>
+                Estimated GST:{' '}
+                <span className="font-semibold text-[#172033]">{formatAmount(gstAmount)}</span>
+              </div>
+              <div>
+                {lines.length} {lines.length === 1 ? 'line item' : 'line items'} · the ledger records
+                the subtotal
+              </div>
             </div>
             <div className="text-right">
               <span className="text-xs text-[#526174]">Total Payable Amount</span>
               <div className="text-2xl font-bold text-[#123B78]">
-                ₹2,83,200.00
+                {formatAmount(subtotal + gstAmount)}
               </div>
             </div>
           </div>
