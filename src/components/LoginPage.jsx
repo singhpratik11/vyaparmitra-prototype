@@ -161,7 +161,9 @@ export default function LoginPage() {
       </main>
 
       <footer className="py-6 px-6 text-center text-xs text-[#526174] border-t border-slate-200/60 bg-white/50">
-        <p>© 2026 VyaparMitra Technologies. Prototype version for Product Management presentation.</p>
+        <p>
+          © 2026 VyaparMitra Technologies. Prototype version for Product Management presentation. Developed by Group-A1. Pratik | Sumanas | Shreya | Aaditya | Karen | Manan
+        </p>
       </footer>
     </div>
   );

@@ -197,7 +197,9 @@ export default function App() {
 
           {/* Footer note */}
           <footer className="py-6 px-6 text-center text-xs text-[#526174] border-t border-slate-200/60 bg-white/50">
-            <p>© 2026 VyaparMitra Technologies. Prototype version for Product Management presentation.</p>
+            <p>
+              © 2026 VyaparMitra Technologies. Prototype version for Product Management presentation. Developed by Group-A1. Pratik | Sumanas | Shreya | Aaditya | Karen | Manan
+            </p>
             <p className="mt-1 text-[11px] text-[#526174]/80">
               Tagline: <span className="font-semibold text-[#123B78]">BUSINESS TOGETHER FOR A BRIGHTER TOMORROW</span>
             </p>
